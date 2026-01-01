@@ -1,0 +1,226 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Family Financial Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Registration Page -->
+    <div id="register-page" class="login-page">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="mascot-container">
+                    <svg id="bear-mascot" width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <!-- Bear Body -->
+                        <ellipse cx="40" cy="60" rx="25" ry="15" fill="#8B4513"/>
+                        <!-- Bear Head -->
+                        <circle cx="40" cy="35" r="20" fill="#8B4513"/>
+                        <!-- Ears -->
+                        <circle cx="25" cy="20" r="8" fill="#8B4513"/>
+                        <circle cx="55" cy="20" r="8" fill="#8B4513"/>
+                        <circle cx="25" cy="20" r="5" fill="#D2691E"/>
+                        <circle cx="55" cy="20" r="5" fill="#D2691E"/>
+                        <!-- Eyes -->
+                        <circle class="eye" cx="32" cy="30" r="3" fill="#fff"/>
+                        <circle class="pupil" cx="32" cy="30" r="1.5" fill="#000"/>
+                        <circle class="eye" cx="48" cy="30" r="3" fill="#fff"/>
+                        <circle class="pupil" cx="48" cy="30" r="1.5" fill="#000"/>
+                        <!-- Nose -->
+                        <circle cx="40" cy="38" r="2" fill="#000"/>
+                        <!-- Mouth -->
+                        <path d="M 35 42 Q 40 45 45 42" stroke="#000" stroke-width="2" fill="none"/>
+                        <!-- Paws for covering eyes -->
+                        <rect id="left-paw" x="28" y="25" width="8" height="10" fill="#8B4513" opacity="0"/>
+                        <rect id="right-paw" x="44" y="25" width="8" height="10" fill="#8B4513" opacity="0"/>
+                    </svg>
+                </div>
+                <h1>Create Account</h1>
+                <p>Join our family and start managing your finances today</p>
+            </div>
+            
+            <form id="register-form" class="login-form">
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" name="username" placeholder="Choose a username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <div class="password-input-container">
+                        <input type="password" id="register-password" name="password" placeholder="Create a strong password" required>
+                        <button type="button" class="password-toggle-btn" data-target="register-password" aria-label="Show password">
+                            <span class="toggle-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirm-password">Confirm Password</label>
+                    <div class="password-input-container">
+                        <input type="password" id="confirm-password" name="confirmPassword" placeholder="Confirm your password" required>
+                        <button type="button" class="password-toggle-btn" data-target="confirm-password" aria-label="Show password">
+                            <span class="toggle-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="register-error" class="error-message" style="display: none;"></div>
+                <div id="register-success" class="success-message" style="display: none;"></div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="login-btn">Create Account</button>
+                    <a href="index.html" class="register-btn">Back to Login</a>
+                </div>
+                
+                <div class="form-footer">
+                    <p>Already have an account? <span class="highlight-text">Sign in here!</span></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Password toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordToggleButtons = document.querySelectorAll('.password-toggle-btn');
+            
+            passwordToggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const targetInput = document.getElementById(targetId);
+                    const icon = this.querySelector('.toggle-icon');
+
+                    if (targetInput.type === 'password') {
+                        targetInput.type = 'text';
+                        icon.textContent = '🙈';
+                        this.setAttribute('aria-label', 'Hide password');
+                    } else {
+                        targetInput.type = 'password';
+                        icon.textContent = '👁️';
+                        this.setAttribute('aria-label', 'Show password');
+                    }
+
+                    // Check if any password is shown
+                    const passwordInputs = document.querySelectorAll('input[type="text"]');
+                    const bear = document.getElementById('bear-mascot');
+                    if (passwordInputs.length > 0) {
+                        bear.classList.add('turn-away');
+                    } else {
+                        bear.classList.remove('turn-away');
+                    }
+                });
+            });
+
+            // Form validation and submission
+            const registerForm = document.getElementById('register-form');
+            const registerError = document.getElementById('register-error');
+            const registerSuccess = document.getElementById('register-success');
+
+            registerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const username = document.getElementById('register-username').value.trim();
+                const password = document.getElementById('register-password').value;
+                const confirmPassword = document.getElementById('confirm-password').value;
+                
+                // Clear previous messages
+                registerError.style.display = 'none';
+                registerSuccess.style.display = 'none';
+                
+                // Validation
+                if (username.length < 3) {
+                    showError('Username must be at least 3 characters long');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    showError('Password must be at least 6 characters long');
+                    return;
+                }
+                
+                if (password !== confirmPassword) {
+                    showError('Passwords do not match');
+                    return;
+                }
+                
+                try {
+                    // Simulate registration (in a real app, this would be an API call)
+                    const response = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            password: password
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        registerSuccess.textContent = 'Account created successfully! Redirecting to login...';
+                        registerSuccess.style.display = 'block';
+                        
+                        // Hide success message after 2 seconds and redirect
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 2000);
+                    } else {
+                        const errorData = await response.json();
+                        showError(errorData.error || 'Registration failed. Please try again.');
+                    }
+                } catch (error) {
+                    showError('Network error. Please check your connection and try again.');
+                }
+            });
+
+            // Bear interactions
+            const bear = document.getElementById('bear-mascot');
+            const pupils = document.querySelectorAll('.pupil');
+            const leftPaw = document.getElementById('left-paw');
+            const rightPaw = document.getElementById('right-paw');
+
+            // Eyes follow cursor
+            document.addEventListener('mousemove', (e) => {
+                const rect = bear.getBoundingClientRect();
+                pupils.forEach((pupil, index) => {
+                    const eyeCenterX = rect.left + (index === 0 ? 32 : 48) / 80 * rect.width;
+                    const eyeCenterY = rect.top + 30 / 80 * rect.height;
+                    const dx = e.clientX - eyeCenterX;
+                    const dy = e.clientY - eyeCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const maxMove = 1;
+                    const moveX = distance > 0 ? (dx / distance) * Math.min(maxMove, distance) : 0;
+                    const moveY = distance > 0 ? (dy / distance) * Math.min(maxMove, distance) : 0;
+                    pupil.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                });
+            });
+
+            // Cover eyes on password focus
+            document.getElementById('register-password').addEventListener('focus', () => {
+                leftPaw.style.opacity = '1';
+                rightPaw.style.opacity = '1';
+            });
+            document.getElementById('register-password').addEventListener('blur', () => {
+                leftPaw.style.opacity = '0';
+                rightPaw.style.opacity = '0';
+            });
+            document.getElementById('confirm-password').addEventListener('focus', () => {
+                leftPaw.style.opacity = '1';
+                rightPaw.style.opacity = '1';
+            });
+            document.getElementById('confirm-password').addEventListener('blur', () => {
+                leftPaw.style.opacity = '0';
+                rightPaw.style.opacity = '0';
+            });
+
+            function showError(message) {
+                registerError.textContent = message;
+                registerError.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

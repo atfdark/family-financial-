@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Financial Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="login-page" class="login-page">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>Family Financial Dashboard</h1>
+                <p>Track your family expenses and manage your finances</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-email">Username</label>
+                    <input type="text" id="login-email" name="username" placeholder="Enter your username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+                </div>
+                
+                <div id="login-error" class="error-message" style="display: none;"></div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="login-btn">Sign In</button>
+                    <button type="button" class="register-btn" id="register-btn">Register</button>
+                </div>
+                
+                <div class="form-footer">
+                    <p>Don't have an account? <span class="highlight-text">Join our family today!</span></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="dashboard-view" style="display: none;">
+        <div class="dashboard-layout">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <div class="avatar-initials" id="current-user-avatar">U</div>
+                        </div>
+                        <div class="user-details">
+                            <h3 id="dashboard-title">Dashboard</h3>
+                            <p id="user-name-display">User</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-actions">
+                    <button id="logout-btn" class="logout-btn">Logout</button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Add New Expense Section -->
+                <div class="expense-section">
+                    <div class="card expense-card">
+                        <div class="card-header">
+                            <h3>Add New Expense</h3>
+                        </div>
+                        <div class="card-content">
+                            <form id="expense-form" class="expense-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="expense-amount">Amount (₹)</label>
+                                        <input type="number" id="expense-amount" name="amount" step="0.01" min="0" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="expense-category">Category</label>
+                                        <select id="expense-category" name="category" required>
+                                            <option value="">Select Category</option>
+                                            <option value="Food">Food</option>
+                                            <option value="Transportation">Transportation</option>
+                                            <option value="Entertainment">Entertainment</option>
+                                            <option value="Utilities">Utilities</option>
+                                            <option value="Shopping">Shopping</option>
+                                            <option value="Healthcare">Healthcare</option>
+                                            <option value="Education">Education</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="expense-description">Description</label>
+                                        <input type="text" id="expense-description" name="description" placeholder="Brief description...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="expense-date">Date</label>
+                                        <input type="date" id="expense-date" name="date" required>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="primary-btn">Add Expense</button>
+                                    <button type="button" id="clear-form" class="secondary-btn">Clear</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Filters -->
+                <div class="dashboard-filters">
+                    <div class="filter-group">
+                        <label for="view-type">View Type:</label>
+                        <div class="view-buttons">
+                            <button class="view-btn active" data-view="monthly">Monthly</button>
+                            <button class="view-btn" data-view="yearly">Yearly</button>
+                        </div>
+                    </div>
+
+                    <div class="filter-group" id="date-controls">
+                        <div id="monthly-controls">
+                            <label for="month-select">Month:</label>
+                            <select id="month-select">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        
+                        <div id="yearly-controls" style="display: none;">
+                            <label for="year-select">Year:</label>
+                            <select id="year-select">
+                                <!-- Years will be populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="load-dashboard" class="primary-btn">Load Dashboard</button>
+                </div>
+
+                <!-- Dashboard Cards -->
+                <div id="dashboard-container" class="dashboard-cards">
+                    <div class="period-info" id="period-info"></div>
+
+                    <div class="cards-grid">
+                        <!-- Top Row -->
+                        <div class="card total-income-card">
+                            <div class="card-header">
+                                <h3>Total Income</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="total-amount" id="total-income">₹0</div>
+                            </div>
+                        </div>
+
+                        <div class="card total-expenses-card">
+                            <div class="card-header">
+                                <h3>Total Expenses</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="total-amount" id="total-expenses">₹0</div>
+                            </div>
+                        </div>
+
+                        <div class="card reminders-card">
+                            <div class="card-header">
+                                <h3>Add Reminders</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="reminder-form">
+                                    <div class="form-group">
+                                        <label for="reminder-text">Reminder</label>
+                                        <input type="text" id="reminder-text" placeholder="Enter reminder...">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="reminder-date">End Date</label>
+                                        <input type="date" id="reminder-date">
+                                    </div>
+                                    <button type="button" id="add-reminder" class="secondary-btn">Add Reminder</button>
+                                </div>
+                                <div id="reminders-list" class="reminders-list"></div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Row -->
+                        <div class="card categories-card">
+                            <div class="card-header">
+                                <h3>Top 5 Categories</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="top-categories-list" class="categories-list"></div>
+                            </div>
+                        </div>
+
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h3>Pie Chart</h3>
+                            </div>
+                            <div class="card-content">
+                                <canvas id="category-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card empty-card">
+                            <div class="card-header">
+                                <h3>Empty Card</h3>
+                            </div>
+                            <div class="card-content">
+                                <p>This card is currently empty.</p>
+                            </div>
+                        </div>
+
+                        <!-- Monthly Trends Chart (Yearly View Only) -->
+                        <div class="card chart-card" id="trends-card" style="display: none;">
+                            <div class="card-header">
+                                <h3>Monthly Trends</h3>
+                            </div>
+                            <div class="card-content">
+                                <canvas id="trends-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading dashboard data...</p>
+                </div>
+
+                <div id="error-message" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
