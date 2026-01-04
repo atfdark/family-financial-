@@ -147,7 +147,6 @@
                 }
                 
                 try {
-                    // Simulate registration (in a real app, this would be an API call)
                     const response = await fetch('/api/register', {
                         method: 'POST',
                         headers: {
@@ -158,11 +157,13 @@
                             password: password
                         })
                     });
-                    
+
                     if (response.ok) {
-                        registerSuccess.textContent = 'Account created successfully! Redirecting to login...';
+                        const data = await response.json();
+                        localStorage.setItem('jwt_token', data.token);
+                        registerSuccess.textContent = 'Account created successfully! Redirecting to dashboard...';
                         registerSuccess.style.display = 'block';
-                        
+
                         // Hide success message after 2 seconds and redirect
                         setTimeout(() => {
                             window.location.href = 'index.html';

@@ -12,9 +12,25 @@ class FamilyDashboard {
     init() {
         this.setupEventListeners();
         this.populateYears();
-        
+
         // Check if user is already logged in
         this.checkAuthStatus();
+    }
+
+    getAuthHeaders() {
+        const token = localStorage.getItem('jwt_token');
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+
+    async authenticatedFetch(url, options = {}) {
+        const headers = { ...this.getAuthHeaders(), ...options.headers };
+        const response = await fetch(url, { ...options, headers });
+        if (response.status === 401) {
+            localStorage.removeItem('jwt_token');
+            this.showLogin();
+            throw new Error('Unauthorized');
+        }
+        return response;
     }
 
     setupEventListeners() {
@@ -88,18 +104,23 @@ class FamilyDashboard {
     }
 
     async checkAuthStatus() {
-        try {
-            const response = await fetch('/auth/me');
-            if (response.ok) {
-                const data = await response.json();
-                this.currentUser = data.user;
-                this.showDashboard();
-                this.updateUserInfo();
-            } else {
+        const token = localStorage.getItem('jwt_token');
+        if (token) {
+            try {
+                const response = await this.authenticatedFetch('/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.currentUser = data.user;
+                    this.showDashboard();
+                    this.updateUserInfo();
+                } else {
+                    this.showLogin();
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
                 this.showLogin();
             }
-        } catch (error) {
-            console.error('Auth check failed:', error);
+        } else {
             this.showLogin();
         }
     }
@@ -126,6 +147,7 @@ class FamilyDashboard {
             const data = await response.json();
 
             if (response.ok) {
+                localStorage.setItem('jwt_token', data.token);
                 this.currentUser = data.user;
                 this.showDashboard();
                 this.updateUserInfo();
@@ -141,6 +163,7 @@ class FamilyDashboard {
     async handleLogout() {
         try {
             await fetch('/auth/logout', { method: 'POST' });
+            localStorage.removeItem('jwt_token');
             this.currentUser = null;
             this.showLogin();
             this.clearDashboard();
@@ -247,8 +270,8 @@ class FamilyDashboard {
                 url = `/dashboard/${this.currentUser.id}/yearly?year=${year}`;
             }
 
-            const response = await fetch(url);
-            
+            const response = await this.authenticatedFetch(url);
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -256,6 +279,9 @@ class FamilyDashboard {
             const data = await response.json();
             this.renderDashboard(data);
         } catch (error) {
+            if (error.message === 'Unauthorized') {
+                return; // Already handled
+            }
             this.showError('Failed to load dashboard: ' + error.message);
         } finally {
             this.hideLoading();
@@ -279,7 +305,7 @@ class FamilyDashboard {
         }
 
         try {
-            const response = await fetch('/expenses', {
+            const response = await this.authenticatedFetch('/expenses', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -303,6 +329,9 @@ class FamilyDashboard {
                 this.showError(data.error || 'Failed to add expense');
             }
         } catch (error) {
+            if (error.message === 'Unauthorized') {
+                return; // Already handled
+            }
             this.showError('Network error. Please try again.');
         }
     }
