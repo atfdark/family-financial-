@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from models import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 from auth import verify_password, get_password_hash, create_access_token
@@ -111,7 +111,7 @@ async def register(request: RegisterRequest):
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = get_current_user):
+async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user information"""
     return UserResponse(user=current_user)
 

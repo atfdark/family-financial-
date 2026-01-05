@@ -1,5 +1,7 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 
 from config import settings
@@ -10,12 +12,18 @@ from routers.dashboard import router as dashboard_router
 from routers.categories import router as categories_router
 from routers.payment_methods import router as payment_methods_router
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("Starting FastAPI application")
     initialize_database()
+    logger.info("Database initialized")
     yield
     # Shutdown
+    logger.info("Shutting down FastAPI application")
     pass
 
 app = FastAPI(
@@ -67,8 +75,20 @@ app.include_router(
 
 @app.get("/")
 async def root():
-    return {"message": "Family Financial API"}
+    return FileResponse("../public/index.html")
+
+@app.get("/register")
+async def register_page():
+    return FileResponse("../public/register.html")
+
+@app.get("/styles.css")
+async def styles():
+    return FileResponse("../public/styles.css")
+
+@app.get("/dashboard.js")
+async def dashboard_js():
+    return FileResponse("../public/dashboard.js")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
