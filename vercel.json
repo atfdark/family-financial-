@@ -2,7 +2,16 @@
   "version": 2,
   "functions": {
     "api/index.py": {
-      "runtime": "python3.9"
+      "runtime": "python3.10"
     }
+  },
+  "regions": ["iad1"],
+  "build": {
+    "env": {
+      "PYTHON_VERSION": "3.10"
+    }
+  },
+  "env": {
+    "PYTHONPATH": "$PYTHONPATH:/var/task"
   }
 }
