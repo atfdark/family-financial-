@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/index.py": {
+    "api/vercel_handler.py": {
       "runtime": "@vercel/python@3.2.0",
       "maxDuration": 30
     }
