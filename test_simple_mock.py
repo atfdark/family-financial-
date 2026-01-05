@@ -1,7 +1,7 @@
-from typing import Dict, Any, Optional
-from config import settings
+#!/usr/bin/env python3
 
-# Mock database for testing registration functionality
+# Simple mock database test without config dependencies
+
 class MockSupabaseClient:
     def __init__(self):
         self.users = []
@@ -10,25 +10,25 @@ class MockSupabaseClient:
     def table(self, table_name: str):
         return MockTable(self, table_name)
     
-    def insert(self, data: Dict[str, Any]):
+    def insert(self, data: dict):
         return MockInsert(self, data)
 
 class MockTable:
-    def __init__(self, client: MockSupabaseClient, table_name: str):
+    def __init__(self, client, table_name: str):
         self.client = client
         self.table_name = table_name
     
     def select(self, *args):
         return MockSelect(self.client, self.table_name, args)
     
-    def eq(self, field: str, value: Any):
+    def eq(self, field: str, value):
         return MockSelect(self.client, self.table_name, [], {field: value})
     
-    def insert(self, data: Dict[str, Any]):
+    def insert(self, data: dict):
         return MockInsert(self.client, data)
 
 class MockSelect:
-    def __init__(self, client: MockSupabaseClient, table_name: str, fields: tuple, filters: Dict[str, Any] = None):
+    def __init__(self, client, table_name: str, fields: tuple, filters: dict = None):
         self.client = client
         self.table_name = table_name
         self.fields = fields
@@ -36,7 +36,6 @@ class MockSelect:
     
     def execute(self):
         if self.table_name == 'users':
-            # Simulate finding a user by email
             if 'email' in self.filters:
                 email = self.filters['email']
                 for user in self.client.users:
@@ -46,7 +45,7 @@ class MockSelect:
         return MockResponse([])
 
 class MockInsert:
-    def __init__(self, client: MockSupabaseClient, data: Dict[str, Any]):
+    def __init__(self, client, data: dict):
         self.client = client
         self.data = data
     
@@ -54,7 +53,6 @@ class MockInsert:
         return self
     
     def execute(self):
-        # Simulate inserting a user
         user = {
             'id': self.client.next_id,
             'name': self.data.get('name', ''),
@@ -69,16 +67,28 @@ class MockResponse:
     def __init__(self, data: list):
         self.data = data
 
-# Global mock client
-_mock_client = None
+def test_mock_database():
+    print("Testing mock database...")
+    
+    # Create mock client
+    client = MockSupabaseClient()
+    print(f"Client type: {type(client)}")
+    
+    # Test inserting a user
+    user_data = {
+        "name": "testuser",
+        "email": "testuser@example.com",
+        "password_hash": "hashed_password"
+    }
+    
+    response = client.table('users').insert(user_data).select().execute()
+    print(f"Insert response: {response.data}")
+    
+    # Test selecting a user
+    response = client.table('users').select('id, name, email, password_hash').eq('email', 'testuser@example.com').execute()
+    print(f"Select response: {response.data}")
+    
+    print("Mock database test completed successfully!")
 
-def get_supabase_admin_client():
-    """Get the mock Supabase client for testing"""
-    global _mock_client
-    if _mock_client is None:
-        _mock_client = MockSupabaseClient()
-    return _mock_client
-
-def get_supabase_client():
-    """Get the mock Supabase client for testing"""
-    return get_supabase_admin_client()
+if __name__ == "__main__":
+    test_mock_database()
