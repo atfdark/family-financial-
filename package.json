@@ -1,0 +1,22 @@
+{
+  "name": "family-financial-api",
+  "version": "1.0.0",
+  "description": "Family Financial Management API with FastAPI backend",
+  "main": "api/vercel_handler.py",
+  "scripts": {
+    "dev": "echo 'Development mode - use FastAPI directly'",
+    "build": "echo 'Build completed successfully'",
+    "start": "python fastapi_backend/main.py"
+  },
+  "keywords": [
+    "fastapi",
+    "python",
+    "vercel",
+    "financial",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

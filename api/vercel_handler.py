@@ -1,32 +1,18 @@
 import sys
 import os
 import logging
-from typing import Any, Dict
 import json
-
-# Add the fastapi_backend directory to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'fastapi_backend'))
+from typing import Any, Dict, Callable, Awaitable
+import asyncio
 
 # Configure logging for Vercel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-try:
-    # Import the FastAPI app from the main module
-    from main import app
-    
-    logger.info("Vercel API entry point loaded successfully")
-    logger.info(f"FastAPI app routes: {[route.path for route in app.routes]}")
-except Exception as e:
-    logger.error(f"Failed to load FastAPI app: {e}")
-    logger.error("This is expected during Vercel build phase when environment variables are not yet set")
-    # Create a minimal app for build phase
-    from fastapi import FastAPI
-    app = FastAPI(title="Family Financial API (Build Phase)")
-    app.add_route("/", lambda: {"status": "building"}, methods=["GET"])
+# Add the fastapi_backend directory to the Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'fastapi_backend'))
 
-# Vercel Python serverless function handler
-async def handler(request: Any, context: Any) -> Dict[str, Any]:
+def handler(request, context):
     """
     Vercel serverless function handler for FastAPI application.
     
@@ -34,6 +20,9 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
     and processes it through the FastAPI application.
     """
     try:
+        # Import the FastAPI app from the fastapi_backend module
+        from fastapi_backend.main import app
+        
         # Extract request information
         method = request.method
         path = request.path
@@ -41,7 +30,7 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
         query_params = dict(request.query)
         
         # Get request body if present
-        body = await request.body() if hasattr(request, 'body') else b''
+        body = request.body() if hasattr(request, 'body') else b''
         
         # Prepare ASGI scope
         scope = {
@@ -72,7 +61,14 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
                 response_data['body'] = message.get('body', b'')
         
         # Run the FastAPI app with ASGI
-        await app(scope, receive, send)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        async def run_app():
+            await app(scope, receive, send)
+        
+        loop.run_until_complete(run_app())
+        loop.close()
         
         # Prepare response
         response = {
@@ -83,12 +79,29 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
         
         return response
         
-    except Exception as e:
-        logger.error(f"Error in handler: {e}")
+    except ImportError as e:
+        logger.error(f"Import error: {e}")
         return {
             'statusCode': 500,
             'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'Internal server error'})
+            'body': json.dumps({
+                'error': 'Import error',
+                'message': str(e),
+                'hint': 'Check that fastapi_backend/main.py exists and is properly structured'
+            })
+        }
+    except Exception as e:
+        logger.error(f"Error in handler: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'message': str(e),
+                'hint': 'Check Vercel logs for detailed error information'
+            })
         }
 
 # Export the handler for Vercel

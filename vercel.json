@@ -12,9 +12,19 @@
       "PYTHON_VERSION": "3.10"
     }
   },
+  "installCommand": "pip install -r requirements.txt",
+  "buildCommand": "echo 'Build completed successfully'",
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/vercel_handler.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/vercel_handler.py"
+    }
+  ],
   "env": {
     "PYTHONPATH": "$PYTHONPATH:/var/task"
-  },
-  "installCommand": "pip install -r requirements.txt",
-  "buildCommand": "echo 'Build completed successfully'"
+  }
 }
