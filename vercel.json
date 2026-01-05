@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.py": {
-      "runtime": "python3.10"
+      "runtime": "@vercel/python@3.2.0"
     }
   },
   "regions": ["iad1"],
@@ -13,5 +13,7 @@
   },
   "env": {
     "PYTHONPATH": "$PYTHONPATH:/var/task"
-  }
+  },
+  "installCommand": "pip install -r requirements.txt",
+  "buildCommand": "echo 'Build completed successfully'"
 }

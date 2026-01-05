@@ -75,8 +75,8 @@ Before deploying, you need to set up the following environment variables in your
 
 ### Common Issues:
 
-1. **Function Runtime Error**: 
-   - Ensure `vercel.json` specifies `"runtime": "python3.10"`
+1. **Function Runtime Error**:
+   - Ensure `vercel.json` specifies `"runtime": "@vercel/python@3.2.0"`
    - Check that `requirements.txt` is in the root directory
 
 2. **Environment Variables Not Found**:
