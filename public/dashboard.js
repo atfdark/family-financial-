@@ -1,480 +1,476 @@
-// Dashboard JavaScript functionality
-class FamilyDashboard {
+// Comprehensive Dashboard JavaScript functionality
+class FamilyFinancialDashboard {
     constructor() {
         this.currentView = 'monthly';
         this.currentUser = null;
         this.currentYear = new Date().getFullYear();
         this.currentMonth = new Date().getMonth() + 1;
+        this.categories = [];
+        this.paymentMethods = [];
+        
+        // Chart instances
+        this.categoryChart = null;
+        this.monthlyTrendsChart = null;
         
         this.init();
     }
 
     init() {
         this.setupEventListeners();
-        this.populateYears();
-
-        // Check if user is already logged in
+        this.populateDateControls();
         this.checkAuthStatus();
     }
 
+    // ===== AUTHENTICATION MANAGEMENT =====
+    
     getAuthHeaders() {
         const token = localStorage.getItem('jwt_token');
         return token ? { 'Authorization': `Bearer ${token}` } : {};
     }
 
+    showLoading(show) {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
+    }
+
     async authenticatedFetch(url, options = {}) {
-        const headers = { ...this.getAuthHeaders(), ...options.headers };
+        const headers = { 
+            'Content-Type': 'application/json',
+            ...this.getAuthHeaders(), 
+            ...options.headers 
+        };
+        
         const response = await fetch(url, { ...options, headers });
+        
         if (response.status === 401) {
             localStorage.removeItem('jwt_token');
-            this.showLogin();
+            this.showAuthError('Session expired. Please log in again.');
+            this.redirectToLogin();
             throw new Error('Unauthorized');
         }
+        
         return response;
     }
 
+    async checkAuthStatus() {
+        const token = localStorage.getItem('jwt_token');
+        if (!token) {
+            this.redirectToLogin();
+            return;
+        }
+
+        try {
+            const response = await this.authenticatedFetch('/api/auth/me');
+            if (response.ok) {
+                const data = await response.json();
+                this.currentUser = data.user;
+                this.updateUserProfile();
+                this.loadInitialData();
+            } else {
+                this.redirectToLogin();
+            }
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            this.redirectToLogin();
+        }
+    }
+
+    updateUserProfile() {
+        if (!this.currentUser) return;
+
+        const userInitials = document.getElementById('userInitials');
+        const userName = document.getElementById('userName');
+        const userEmail = document.getElementById('userEmail');
+        const userAvatar = document.getElementById('userAvatar');
+
+        if (userInitials && userName && userEmail) {
+            const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
+            userInitials.textContent = initials;
+            userName.textContent = this.currentUser.name;
+            userEmail.textContent = this.currentUser.email;
+        }
+    }
+
+    redirectToLogin() {
+        window.location.href = 'index.html';
+    }
+
+    handleLogout() {
+        localStorage.removeItem('jwt_token');
+        this.redirectToLogin();
+    }
+
+    showAuthError(message) {
+        this.showNotification(message, 'error');
+    }
+
+    // ===== EXPENSE MANAGEMENT =====
+    
     setupEventListeners() {
-        // Login form
-        const loginForm = document.getElementById('login-form');
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
+        // View switching
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.switchView(e.target.dataset.view);
+            });
+        });
+
+        // Date controls
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+        
+        if (monthSelect) {
+            monthSelect.addEventListener('change', () => {
+                this.currentMonth = parseInt(monthSelect.value);
+                this.loadDashboard();
+            });
+        }
+        
+        if (yearSelect) {
+            yearSelect.addEventListener('change', () => {
+                this.currentYear = parseInt(yearSelect.value);
+                this.loadDashboard();
+            });
+        }
+
+        // Form submission
+        const expenseForm = document.getElementById('expenseForm');
+        if (expenseForm) {
+            expenseForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.handleLogin();
+                this.handleExpenseSubmission();
             });
         }
 
-        // Register button
-        const registerBtn = document.getElementById('register-btn');
-        if (registerBtn) {
-            registerBtn.addEventListener('click', () => {
-                this.handleRegister();
+        // Reset form
+        const resetFormBtn = document.getElementById('resetFormBtn');
+        if (resetFormBtn) {
+            resetFormBtn.addEventListener('click', () => {
+                this.resetExpenseForm();
             });
         }
 
-        // Logout button
-        const logoutBtn = document.getElementById('logout-btn');
+        // Apply filters
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', () => {
+                this.loadDashboard();
+            });
+        }
+
+        // Reset filters
+        const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', () => {
+                this.resetFilters();
+            });
+        }
+
+        // Logout
+        const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 this.handleLogout();
             });
         }
 
-        // View type buttons
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.currentView = e.target.dataset.view;
-                this.toggleDateControls();
-            });
-        });
-
-        // Load dashboard button
-        document.getElementById('load-dashboard').addEventListener('click', () => {
-            this.loadDashboard();
-        });
-
-        // Clear form button
-        document.getElementById('clear-form').addEventListener('click', () => {
-            this.clearForm();
-        });
-
-        // Add reminder button
-        const addReminderBtn = document.getElementById('add-reminder');
+        // Add reminder
+        const addReminderBtn = document.getElementById('addReminderBtn');
         if (addReminderBtn) {
             addReminderBtn.addEventListener('click', () => {
                 this.addReminder();
             });
         }
 
-        // Expense form submission
-        document.getElementById('expense-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.addExpense();
-        });
-
-        // Keyboard support
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && document.getElementById('login-page').style.display !== 'none') {
-                this.handleLogin();
-            } else if (e.key === 'Enter' && document.getElementById('dashboard-view').style.display !== 'none') {
-                this.loadDashboard();
-            }
-        });
+        // Form validation
+        this.setupFormValidation();
     }
 
-    async checkAuthStatus() {
-        const token = localStorage.getItem('jwt_token');
-        if (token) {
-            try {
-                const response = await this.authenticatedFetch('/auth/me');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.currentUser = data.user;
-                    this.showDashboard();
-                    this.updateUserInfo();
-                } else {
-                    this.showLogin();
+    setupFormValidation() {
+        const amountInput = document.getElementById('amount');
+        const categorySelect = document.getElementById('category');
+        const paymentMethodSelect = document.getElementById('paymentMethod');
+        const dateInput = document.getElementById('date');
+
+        if (amountInput) {
+            amountInput.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                if (value < 0) {
+                    e.target.value = '';
+                    this.showNotification('Amount cannot be negative', 'error');
                 }
-            } catch (error) {
-                console.error('Auth check failed:', error);
-                this.showLogin();
-            }
-        } else {
-            this.showLogin();
+            });
+        }
+
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.max = today;
         }
     }
 
-    async handleLogin() {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        const errorDiv = document.getElementById('login-error');
-
-        if (!email || !password) {
-            this.showLoginError('Please enter both email and password');
+    async handleExpenseSubmission() {
+        const formData = this.getExpenseFormData();
+        
+        if (!this.validateExpenseForm(formData)) {
             return;
         }
 
         try {
-            const response = await fetch('/auth/login', {
+            const response = await this.authenticatedFetch('/api/expenses', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify(formData)
             });
 
-            const data = await response.json();
+            const result = await response.json();
 
             if (response.ok) {
-                localStorage.setItem('jwt_token', data.token);
-                this.currentUser = data.user;
-                this.showDashboard();
-                this.updateUserInfo();
-                this.hideLoginError();
+                this.showNotification('Expense added successfully!', 'success');
+                this.resetExpenseForm();
+                this.loadDashboard(); // Refresh dashboard data
             } else {
-                this.showLoginError(data.error || 'Login failed');
+                this.showNotification(result.error || 'Failed to add expense', 'error');
             }
         } catch (error) {
-            this.showLoginError('Network error. Please try again.');
+            if (error.message !== 'Unauthorized') {
+                this.showNotification('Network error. Please try again.', 'error');
+            }
         }
     }
 
-    async handleLogout() {
+    getExpenseFormData() {
+        return {
+            amount: parseFloat(document.getElementById('amount').value),
+            category_id: parseInt(document.getElementById('category').value),
+            payment_method_id: parseInt(document.getElementById('paymentMethod').value),
+            description: document.getElementById('description').value.trim(),
+            date: document.getElementById('date').value
+        };
+    }
+
+    validateExpenseForm(formData) {
+        const { amount, category_id, payment_method_id, date } = formData;
+
+        if (!amount || amount <= 0) {
+            this.showNotification('Please enter a valid amount', 'error');
+            return false;
+        }
+
+        if (!category_id) {
+            this.showNotification('Please select a category', 'error');
+            return false;
+        }
+
+        if (!payment_method_id) {
+            this.showNotification('Please select a payment method', 'error');
+            return false;
+        }
+
+        if (!date) {
+            this.showNotification('Please select a date', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    resetExpenseForm() {
+        const form = document.getElementById('expenseForm');
+        if (form) {
+            form.reset();
+            // Set default date to today
+            const dateInput = document.getElementById('date');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+        }
+    }
+
+    // ===== DASHBOARD ANALYTICS =====
+    
+    async loadInitialData() {
         try {
-            await fetch('/auth/logout', { method: 'POST' });
-            localStorage.removeItem('jwt_token');
-            this.currentUser = null;
-            this.showLogin();
-            this.clearDashboard();
+            // Load categories and payment methods
+            await Promise.all([
+                this.loadCategories(),
+                this.loadPaymentMethods()
+            ]);
+            
+            // Load dashboard data
+            this.loadDashboard();
         } catch (error) {
-            console.error('Logout failed:', error);
+            console.error('Failed to load initial data:', error);
+            this.showNotification('Failed to load dashboard data', 'error');
         }
     }
 
-    handleRegister() {
-        // Show a simple alert for now since registration functionality isn't implemented
-        window.location.href = 'register.html';
-        
-        // In a future implementation, this could:
-        // 1. Show a registration form modal
-        // 2. Redirect to a registration page
-        // 3. Send an email to the administrator
-    }
-
-    showLogin() {
-        document.getElementById('login-page').style.display = 'flex';
-        document.getElementById('dashboard-view').style.display = 'none';
-    }
-
-    showDashboard() {
-        document.getElementById('login-page').style.display = 'none';
-        document.getElementById('dashboard-view').style.display = 'block';
-        this.loadDashboard();
-    }
-
-    updateUserInfo() {
-        if (!this.currentUser) return;
-
-        const dashboardTitle = document.getElementById('dashboard-title');
-        const userNameDisplay = document.getElementById('user-name-display');
-        const userAvatar = document.getElementById('current-user-avatar');
-
-        dashboardTitle.textContent = `${this.currentUser.name}'s Dashboard`;
-        userNameDisplay.textContent = this.currentUser.name;
-
-        // Set user avatar initials
-        const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
-        userAvatar.textContent = initials;
-    }
-
-    showLoginError(message) {
-        const errorDiv = document.getElementById('login-error');
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-    }
-
-    hideLoginError() {
-        const errorDiv = document.getElementById('login-error');
-        errorDiv.style.display = 'none';
-    }
-
-    toggleDateControls() {
-        const monthlyControls = document.getElementById('monthly-controls');
-        const yearlyControls = document.getElementById('yearly-controls');
-        const trendsCard = document.getElementById('trends-card');
-
-        if (this.currentView === 'monthly') {
-            monthlyControls.style.display = 'block';
-            yearlyControls.style.display = 'none';
-            trendsCard.style.display = 'none';
-        } else {
-            monthlyControls.style.display = 'none';
-            yearlyControls.style.display = 'block';
-            trendsCard.style.display = 'block';
-        }
-    }
-
-    populateYears() {
-        const yearSelect = document.getElementById('year-select');
-        const currentYear = new Date().getFullYear();
-        
-        for (let year = currentYear - 5; year <= currentYear + 1; year++) {
-            const option = document.createElement('option');
-            option.value = year;
-            option.textContent = year;
-            if (year === currentYear) {
-                option.selected = true;
+    async loadCategories() {
+        try {
+            const response = await this.authenticatedFetch('/api/categories');
+            if (response.ok) {
+                this.categories = await response.json();
+                this.populateDropdown('category', this.categories, 'name', 'id');
             }
-            yearSelect.appendChild(option);
+        } catch (error) {
+            console.error('Failed to load categories:', error);
+        }
+    }
+
+    async loadPaymentMethods() {
+        try {
+            const response = await this.authenticatedFetch('/api/payment-methods');
+            if (response.ok) {
+                this.paymentMethods = await response.json();
+                this.populateDropdown('paymentMethod', this.paymentMethods, 'name', 'id');
+            }
+        } catch (error) {
+            console.error('Failed to load payment methods:', error);
+        }
+    }
+
+    populateDropdown(elementId, data, labelKey, valueKey) {
+        const select = document.getElementById(elementId);
+        if (!select || !data) return;
+
+        // Clear existing options (except the first placeholder option)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        data.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item[valueKey];
+            option.textContent = item[labelKey];
+            select.appendChild(option);
+        });
+    }
+
+    populateDateControls() {
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+
+        if (monthSelect) {
+            const currentMonth = new Date().getMonth() + 1;
+            Array.from(monthSelect.options).forEach((option, index) => {
+                if (parseInt(option.value) === currentMonth) {
+                    option.selected = true;
+                }
+            });
+        }
+
+        if (yearSelect) {
+            const currentYear = new Date().getFullYear();
+            Array.from(yearSelect.options).forEach(option => {
+                if (parseInt(option.value) === currentYear) {
+                    option.selected = true;
+                }
+            });
         }
     }
 
     async loadDashboard() {
-        if (!this.currentUser) {
-            this.showError('Please log in first');
-            return;
-        }
+        if (!this.currentUser) return;
 
-        const month = document.getElementById('month-select').value;
-        const year = document.getElementById('year-select').value;
-
-        this.showLoading();
-        this.hideError();
-
-        try {
-            let url;
-            if (this.currentView === 'monthly') {
-                url = `/dashboard/${this.currentUser.id}/monthly?year=${year}&month=${month}`;
-            } else {
-                url = `/dashboard/${this.currentUser.id}/yearly?year=${year}`;
-            }
-
-            const response = await this.authenticatedFetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            this.renderDashboard(data);
-        } catch (error) {
-            if (error.message === 'Unauthorized') {
-                return; // Already handled
-            }
-            this.showError('Failed to load dashboard: ' + error.message);
-        } finally {
-            this.hideLoading();
-        }
-    }
-
-    async addExpense() {
-        if (!this.currentUser) {
-            this.showError('Please log in first');
-            return;
-        }
-
-        const amount = parseFloat(document.getElementById('expense-amount').value);
-        const category = document.getElementById('expense-category').value;
-        const description = document.getElementById('expense-description').value;
-        const date = document.getElementById('expense-date').value;
-
-        if (!amount || !category || !date) {
-            this.showError('Please fill in all required fields');
-            return;
-        }
-
-        try {
-            const response = await this.authenticatedFetch('/expenses', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    amount,
-                    category_id: this.getCategoryId(category),
-                    payment_method_id: 1, // Default to Cash
-                    description,
-                    date
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                this.showSuccess('Expense added successfully');
-                this.clearForm();
-                this.loadDashboard(); // Refresh dashboard
-            } else {
-                this.showError(data.error || 'Failed to add expense');
-            }
-        } catch (error) {
-            if (error.message === 'Unauthorized') {
-                return; // Already handled
-            }
-            this.showError('Network error. Please try again.');
-        }
-    }
-
-    addReminder() {
-        const reminderText = document.getElementById('reminder-text').value;
-        const reminderDate = document.getElementById('reminder-date').value;
-        const remindersList = document.getElementById('reminders-list');
-
-        if (!reminderText) {
-            this.showError('Please enter a reminder');
-            return;
-        }
-
-        const reminderItem = document.createElement('div');
-        reminderItem.className = 'reminder-item';
+        this.showLoading(true);
         
-        const reminderContent = document.createElement('div');
-        reminderContent.innerHTML = `
-            <div><strong>${reminderText}</strong></div>
-            ${reminderDate ? `<div style="font-size: 0.85rem; color: #666;">Ends: ${reminderDate}</div>` : ''}
-        `;
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'secondary-btn';
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.onclick = () => {
-            reminderItem.remove();
-        };
-
-        reminderItem.appendChild(reminderContent);
-        reminderItem.appendChild(deleteBtn);
-        remindersList.appendChild(reminderItem);
-
-        // Clear input fields
-        document.getElementById('reminder-text').value = '';
-        document.getElementById('reminder-date').value = '';
-
-        this.showSuccess('Reminder added successfully');
-    }
-
-    getCategoryId(categoryName) {
-        // Simple mapping for now - in a real app, this would come from the API
-        const categoryMap = {
-            'Food': 1,
-            'Transportation': 2,
-            'Entertainment': 3,
-            'Utilities': 4,
-            'Shopping': 5,
-            'Healthcare': 6,
-            'Education': 7,
-            'Other': 8
-        };
-        return categoryMap[categoryName] || 8; // Default to Other
-    }
-
-    clearForm() {
-        document.getElementById('expense-form').reset();
+        try {
+            const url = `/api/dashboard/${this.currentUser.id}/${this.currentView}?year=${this.currentYear}&month=${this.currentMonth}`;
+            const response = await this.authenticatedFetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.renderDashboard(data);
+            } else {
+                throw new Error('Failed to load dashboard data');
+            }
+        } catch (error) {
+            if (error.message !== 'Unauthorized') {
+                this.showNotification('Failed to load dashboard data', 'error');
+            }
+        } finally {
+            this.showLoading(false);
+        }
     }
 
     renderDashboard(data) {
-        // Update dashboard header
-        document.getElementById('dashboard-title').textContent = `${data.user.name}'s ${this.currentView === 'monthly' ? 'Monthly' : 'Yearly'} Dashboard`;
+        this.updateSummaryCards(data);
+        this.renderTopCategories(data.top_categories || []);
+        this.renderCategoryChart(data.category_breakdown || []);
         
-        const periodInfo = document.getElementById('period-info');
-        if (this.currentView === 'monthly') {
-            const monthName = new Date(data.period.year, data.period.month - 1).toLocaleString('default', { month: 'long' });
-            periodInfo.textContent = `${monthName} ${data.period.year}`;
-        } else {
-            periodInfo.textContent = `Year ${data.period.year}`;
-        }
-
-        // Update total income and expenses
-        const totalIncome = document.getElementById('total-income');
-        const totalExpenses = document.getElementById('total-expenses');
-        
-        // For now, we'll use the total spent as expenses
-        // In a real implementation, you'd have separate income data
-        totalIncome.textContent = this.formatCurrency(data.total_income || 0);
-        totalExpenses.textContent = this.formatCurrency(data.total_spent);
-
-        // Update top categories
-        this.renderTopCategories(data.top_categories);
-
-        // Update category breakdown chart
-        this.renderCategoryChart(data.category_breakdown);
-
-        // Update monthly trends chart (yearly view only)
         if (this.currentView === 'yearly') {
-            this.renderTrendsChart(data.monthly_trends);
+            this.renderMonthlyTrendsChart(data.monthly_trends || []);
         }
+    }
 
-        // Show dashboard
-        document.getElementById('dashboard-container').style.display = 'block';
+    updateSummaryCards(data) {
+        const totalIncome = document.getElementById('totalIncome');
+        const totalExpenses = document.getElementById('totalExpenses');
+        const balance = document.getElementById('balance');
+        const incomePeriod = document.getElementById('incomePeriod');
+        const expensesPeriod = document.getElementById('expensesPeriod');
+        const balancePeriod = document.getElementById('balancePeriod');
+
+        const periodText = this.getPeriodText();
+
+        if (totalIncome) totalIncome.textContent = this.formatCurrency(data.total_income || 0);
+        if (totalExpenses) totalExpenses.textContent = this.formatCurrency(data.total_expenses || 0);
+        if (balance) balance.textContent = this.formatCurrency((data.total_income || 0) - (data.total_expenses || 0));
+        
+        if (incomePeriod) incomePeriod.textContent = periodText;
+        if (expensesPeriod) expensesPeriod.textContent = periodText;
+        if (balancePeriod) balancePeriod.textContent = periodText;
     }
 
     renderTopCategories(topCategories) {
-        const container = document.getElementById('top-categories-list');
+        const container = document.getElementById('topCategoriesList');
+        if (!container) return;
+
         container.innerHTML = '';
 
-        if (topCategories.length === 0) {
-            container.innerHTML = '<p class="no-data">No spending data available for this period.</p>';
+        if (!topCategories || topCategories.length === 0) {
+            container.innerHTML = '<div class="no-data">No spending data available for this period.</div>';
             return;
         }
 
         topCategories.forEach((category, index) => {
-            const div = document.createElement('div');
-            div.className = `category-item category-color-${index}`;
-            div.innerHTML = `
-                <div>
-                    <div class="category-name">${category.category}</div>
-                    <div class="category-percentage">${category.percentage ? category.percentage.toFixed(1) + '%' : ''}</div>
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'category-item';
+            categoryDiv.innerHTML = `
+                <div class="category-info">
+                    <span class="category-name">${category.category || 'Unknown'}</span>
+                    <span class="category-percentage">${category.percentage ? category.percentage.toFixed(1) + '%' : ''}</span>
                 </div>
-                <div class="category-amount">${this.formatCurrency(category.amount)}</div>
+                <span class="category-amount">${this.formatCurrency(category.amount || 0)}</span>
             `;
-            container.appendChild(div);
+            container.appendChild(categoryDiv);
         });
     }
 
+    // ===== DATA VISUALIZATION =====
+    
     renderCategoryChart(categoryData) {
-        const ctx = document.getElementById('category-chart').getContext('2d');
-        
-        // Destroy existing chart if it exists
-        if (window.categoryChart) {
-            window.categoryChart.destroy();
+        const ctx = document.getElementById('categoryBreakdownChart');
+        if (!ctx) return;
+
+        // Destroy existing chart
+        if (this.categoryChart) {
+            this.categoryChart.destroy();
         }
 
-        const labels = categoryData.map(item => item.category);
-        const data = categoryData.map(item => item.amount);
-        const colors = [
-            '#000', '#000', '#000', '#000', '#000', 
-            '#000', '#000', '#000', '#000'
-        ];
+        const labels = categoryData.map(item => item.category || 'Unknown');
+        const data = categoryData.map(item => item.amount || 0);
+        const colors = this.generateColors(categoryData.length);
 
-        window.categoryChart = new Chart(ctx, {
+        this.categoryChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
                 datasets: [{
                     data: data,
-                    backgroundColor: colors.slice(0, labels.length),
-                    borderWidth: 1,
-                    borderColor: '#fff'
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    hoverBorderWidth: 3
                 }]
             },
             options: {
@@ -485,60 +481,88 @@ class FamilyDashboard {
                         position: 'bottom',
                         labels: {
                             padding: 20,
-                            usePointStyle: true
+                            usePointStyle: true,
+                            font: {
+                                size: 12
+                            }
                         }
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: (context) => {
                                 const label = context.label || '';
                                 const value = context.parsed;
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
                                 return `${label}: ${this.formatCurrency(value)} (${percentage}%)`;
-                            }.bind(this)
+                            }
                         }
                     }
+                },
+                animation: {
+                    animateRotate: true,
+                    animateScale: true
                 }
             }
         });
     }
 
-    renderTrendsChart(monthlyData) {
-        const ctx = document.getElementById('trends-chart').getContext('2d');
-        
-        // Destroy existing chart if it exists
-        if (window.trendsChart) {
-            window.trendsChart.destroy();
+    renderMonthlyTrendsChart(monthlyData) {
+        const ctx = document.getElementById('monthlyTrendsChart');
+        if (!ctx) return;
+
+        // Show trends card
+        const trendsCard = document.getElementById('monthlyTrendsCard');
+        if (trendsCard) {
+            trendsCard.style.display = 'block';
         }
 
-        const labels = monthlyData.map(item => item.month_name);
-        const data = monthlyData.map(item => item.amount);
+        // Destroy existing chart
+        if (this.monthlyTrendsChart) {
+            this.monthlyTrendsChart.destroy();
+        }
 
-        window.trendsChart = new Chart(ctx, {
+        const labels = monthlyData.map(item => item.month_name || 'Unknown');
+        const data = monthlyData.map(item => item.amount || 0);
+
+        this.monthlyTrendsChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Monthly Spending',
+                    label: 'Monthly Expenses',
                     data: data,
-                    borderColor: '#000',
-                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
                     borderWidth: 3,
                     fill: true,
-                    tension: 0.4
+                    tension: 0.4,
+                    pointBackgroundColor: '#2563eb',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
                         ticks: {
-                            callback: function(value) {
-                                return this.formatCurrency(value);
-                            }.bind(this)
+                            callback: (value) => this.formatCurrency(value)
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
                         }
                     }
                 },
@@ -547,71 +571,148 @@ class FamilyDashboard {
                         display: false
                     },
                     tooltip: {
+                        mode: 'index',
+                        intersect: false,
                         callbacks: {
-                            label: function(context) {
-                                return `Spending: ${this.formatCurrency(context.parsed.y)}`;
-                            }.bind(this)
+                            label: (context) => {
+                                return `Expenses: ${this.formatCurrency(context.parsed.y)}`;
+                            }
                         }
                     }
+                },
+                animation: {
+                    duration: 1000
                 }
             }
         });
+    }
+
+    // ===== USER INTERFACE INTERACTIONS =====
+    
+    switchView(view) {
+        this.currentView = view;
+        
+        // Update toggle buttons
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
+
+        // Toggle trends chart visibility
+        const trendsCard = document.getElementById('monthlyTrendsCard');
+        if (trendsCard) {
+            trendsCard.style.display = view === 'yearly' ? 'block' : 'none';
+        }
+
+        this.loadDashboard();
+    }
+
+    resetFilters() {
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+
+        if (monthSelect) {
+            monthSelect.value = new Date().getMonth() + 1;
+            this.currentMonth = parseInt(monthSelect.value);
+        }
+
+        if (yearSelect) {
+            yearSelect.value = new Date().getFullYear();
+            this.currentYear = parseInt(yearSelect.value);
+        }
+
+        this.loadDashboard();
+    }
+
+    getPeriodText() {
+        if (this.currentView === 'monthly') {
+            const monthName = new Date(this.currentYear, this.currentMonth - 1).toLocaleString('default', { month: 'long' });
+            return `${monthName} ${this.currentYear}`;
+        } else {
+            return `Year ${this.currentYear}`;
+        }
+    }
+
+    // ===== REMINDERS FUNCTIONALITY =====
+    
+    addReminder() {
+        const reminderText = document.getElementById('reminderText');
+        const reminderDate = document.getElementById('reminderDate');
+        const remindersList = document.getElementById('remindersList');
+
+        if (!reminderText || !reminderDate || !remindersList) return;
+
+        const text = reminderText.value.trim();
+        const date = reminderDate.value;
+
+        if (!text) {
+            this.showNotification('Please enter a reminder text', 'error');
+            return;
+        }
+
+        const reminderItem = document.createElement('div');
+        reminderItem.className = 'reminder-item';
+        
+        const dateText = date ? new Date(date).toLocaleDateString() : 'No date set';
+        
+        reminderItem.innerHTML = `
+            <div class="reminder-content">
+                <span class="reminder-text">${text}</span>
+                <span class="reminder-date">${dateText}</span>
+            </div>
+            <button class="btn-delete" onclick="this.parentElement.parentElement.remove()">Delete</button>
+        `;
+
+        remindersList.appendChild(reminderItem);
+        
+        // Clear inputs
+        reminderText.value = '';
+        reminderDate.value = '';
+        
+        this.showNotification('Reminder added successfully!', 'success');
+    }
+
+    // ===== UTILITY FUNCTIONS =====
+    
+    generateColors(count) {
+        const colors = [
+            '#2563eb', '#16a34a', '#dc2626', '#ca8a04', '#7c3aed',
+            '#06b6d4', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'
+        ];
+        
+        return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
     }
 
     formatCurrency(amount) {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
             currency: 'INR',
-            minimumFractionDigits: 0
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
         }).format(amount || 0);
     }
 
-    showLoading() {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('dashboard-container').style.display = 'none';
-    }
+    showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existing = document.querySelector('.notification');
+        if (existing) existing.remove();
 
-    hideLoading() {
-        document.getElementById('loading').style.display = 'none';
-    }
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
 
-    showError(message) {
-        const errorDiv = document.getElementById('error-message');
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-    }
+        document.body.appendChild(notification);
 
-    hideError() {
-        document.getElementById('error-message').style.display = 'none';
-    }
-
-    showSuccess(message) {
-        const successDiv = document.createElement('div');
-        successDiv.className = 'success-message';
-        successDiv.textContent = message;
-        document.body.appendChild(successDiv);
-        
+        // Auto-remove after 3 seconds
         setTimeout(() => {
-            successDiv.remove();
+            if (notification.parentNode) {
+                notification.remove();
+            }
         }, 3000);
     }
 
-    clearDashboard() {
-        document.getElementById('total-income').textContent = '₹0';
-        document.getElementById('total-expenses').textContent = '₹0';
-        document.getElementById('top-categories-list').innerHTML = '';
-        document.getElementById('period-info').textContent = '';
-        
-        if (window.categoryChart) {
-            window.categoryChart.destroy();
-        }
-        if (window.trendsChart) {
-            window.trendsChart.destroy();
-        }
-    }
 }
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new FamilyDashboard();
+    new FamilyFinancialDashboard();
 });
