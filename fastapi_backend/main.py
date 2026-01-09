@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from config import settings
 from utils.database import initialize_database
 from database import init_supabase_clients
-from routers.auth import router as auth_router
 import asyncio
 from routers.expenses import router as expenses_router
 from routers.dashboard import router as dashboard_router
@@ -73,12 +72,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(
-    auth_router,
-    prefix="/api/auth",
-    tags=["Authentication"]
-)
-
-app.include_router(
     expenses_router,
     prefix="/api/expenses",
     tags=["Expenses"]
@@ -105,10 +98,6 @@ app.include_router(
 @app.get("/")
 async def root():
     return FileResponse("../public/index.html")
-
-@app.get("/register")
-async def register_page():
-    return FileResponse("../public/register.html")
 
 @app.get("/styles.css")
 async def styles():

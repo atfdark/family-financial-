@@ -16,95 +16,13 @@ class FamilyFinancialDashboard {
     }
 
     init() {
+        this.currentUser = {id: "1", name: "Family"};
         this.setupEventListeners();
         this.populateDateControls();
-        this.checkAuthStatus();
+        this.loadInitialData();
     }
 
-    // ===== AUTHENTICATION MANAGEMENT =====
-    
-    getAuthHeaders() {
-        const token = localStorage.getItem('jwt_token');
-        return token ? { 'Authorization': `Bearer ${token}` } : {};
-    }
-
-    showLoading(show) {
-        const loadingOverlay = document.getElementById('loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = show ? 'flex' : 'none';
-        }
-    }
-
-    async authenticatedFetch(url, options = {}) {
-        const headers = { 
-            'Content-Type': 'application/json',
-            ...this.getAuthHeaders(), 
-            ...options.headers 
-        };
-        
-        const response = await fetch(url, { ...options, headers });
-        
-        if (response.status === 401) {
-            localStorage.removeItem('jwt_token');
-            this.showAuthError('Session expired. Please log in again.');
-            this.redirectToLogin();
-            throw new Error('Unauthorized');
-        }
-        
-        return response;
-    }
-
-    async checkAuthStatus() {
-        const token = localStorage.getItem('jwt_token');
-        if (!token) {
-            this.redirectToLogin();
-            return;
-        }
-
-        try {
-            const response = await this.authenticatedFetch('/api/auth/me');
-            if (response.ok) {
-                const data = await response.json();
-                this.currentUser = data.user;
-                this.updateUserProfile();
-                this.loadInitialData();
-            } else {
-                this.redirectToLogin();
-            }
-        } catch (error) {
-            console.error('Auth check failed:', error);
-            this.redirectToLogin();
-        }
-    }
-
-    updateUserProfile() {
-        if (!this.currentUser) return;
-
-        const userInitials = document.getElementById('userInitials');
-        const userName = document.getElementById('userName');
-        const userEmail = document.getElementById('userEmail');
-        const userAvatar = document.getElementById('userAvatar');
-
-        if (userInitials && userName && userEmail) {
-            const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
-            userInitials.textContent = initials;
-            userName.textContent = this.currentUser.name;
-            userEmail.textContent = this.currentUser.email;
-        }
-    }
-
-    redirectToLogin() {
-        window.location.href = 'index.html';
-    }
-
-    handleLogout() {
-        localStorage.removeItem('jwt_token');
-        this.redirectToLogin();
-    }
-
-    showAuthError(message) {
-        this.showNotification(message, 'error');
-    }
+    // ===== NO AUTH =====
 
     // ===== EXPENSE MANAGEMENT =====
     
@@ -167,13 +85,7 @@ class FamilyFinancialDashboard {
             });
         }
 
-        // Logout
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this.handleLogout();
-            });
-        }
+        // No logout
 
         // Add reminder
         const addReminderBtn = document.getElementById('addReminderBtn');
@@ -188,10 +100,10 @@ class FamilyFinancialDashboard {
     }
 
     setupFormValidation() {
-        const amountInput = document.getElementById('amount');
-        const categorySelect = document.getElementById('category');
-        const paymentMethodSelect = document.getElementById('paymentMethod');
-        const dateInput = document.getElementById('date');
+        const amountInput = document.getElementById('expense-amount');
+        const categorySelect = document.getElementById('expense-category');
+        const paymentMethodSelect = document.getElementById('expense-payment-method');
+        const dateInput = document.getElementById('expense-date');
 
         if (amountInput) {
             amountInput.addEventListener('input', (e) => {
@@ -217,8 +129,9 @@ class FamilyFinancialDashboard {
         }
 
         try {
-            const response = await this.authenticatedFetch('/api/expenses', {
+            const response = await fetch('/api/expenses', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
 
@@ -240,11 +153,11 @@ class FamilyFinancialDashboard {
 
     getExpenseFormData() {
         return {
-            amount: parseFloat(document.getElementById('amount').value),
-            category_id: parseInt(document.getElementById('category').value),
-            payment_method_id: parseInt(document.getElementById('paymentMethod').value),
-            description: document.getElementById('description').value.trim(),
-            date: document.getElementById('date').value
+            amount: parseFloat(document.getElementById('expense-amount').value),
+            category_id: parseInt(document.getElementById('expense-category').value),
+            payment_method_id: parseInt(document.getElementById('expense-payment-method').value),
+            description: document.getElementById('expense-description').value.trim(),
+            date: document.getElementById('expense-date').value
         };
     }
 
@@ -275,11 +188,11 @@ class FamilyFinancialDashboard {
     }
 
     resetExpenseForm() {
-        const form = document.getElementById('expenseForm');
+        const form = document.getElementById('expense-form');
         if (form) {
             form.reset();
             // Set default date to today
-            const dateInput = document.getElementById('date');
+            const dateInput = document.getElementById('expense-date');
             if (dateInput) {
                 dateInput.value = new Date().toISOString().split('T')[0];
             }
@@ -306,10 +219,10 @@ class FamilyFinancialDashboard {
 
     async loadCategories() {
         try {
-            const response = await this.authenticatedFetch('/api/categories');
+            const response = await fetch('/api/categories');
             if (response.ok) {
                 this.categories = await response.json();
-                this.populateDropdown('category', this.categories, 'name', 'id');
+                this.populateDropdown('expense-category', this.categories, 'name', 'id');
             }
         } catch (error) {
             console.error('Failed to load categories:', error);
@@ -318,10 +231,10 @@ class FamilyFinancialDashboard {
 
     async loadPaymentMethods() {
         try {
-            const response = await this.authenticatedFetch('/api/payment-methods');
+            const response = await fetch('/api/payment-methods');
             if (response.ok) {
                 this.paymentMethods = await response.json();
-                this.populateDropdown('paymentMethod', this.paymentMethods, 'name', 'id');
+                this.populateDropdown('expense-payment-method', this.paymentMethods, 'name', 'id');
             }
         } catch (error) {
             console.error('Failed to load payment methods:', error);
@@ -369,14 +282,10 @@ class FamilyFinancialDashboard {
     }
 
     async loadDashboard() {
-        if (!this.currentUser) return;
-
-        this.showLoading(true);
-        
         try {
-            const url = `/api/dashboard/${this.currentUser.id}/${this.currentView}?year=${this.currentYear}&month=${this.currentMonth}`;
-            const response = await this.authenticatedFetch(url);
-            
+            const url = `/api/dashboard/${this.currentView}?year=${this.currentYear}&month=${this.currentMonth}`;
+            const response = await fetch(url);
+
             if (response.ok) {
                 const data = await response.json();
                 this.renderDashboard(data);
@@ -384,11 +293,7 @@ class FamilyFinancialDashboard {
                 throw new Error('Failed to load dashboard data');
             }
         } catch (error) {
-            if (error.message !== 'Unauthorized') {
-                this.showNotification('Failed to load dashboard data', 'error');
-            }
-        } finally {
-            this.showLoading(false);
+            this.showNotification('Failed to load dashboard data', 'error');
         }
     }
 
