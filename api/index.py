@@ -26,23 +26,31 @@ except Exception as e:
     app.add_route("/", lambda: {"status": "building"}, methods=["GET"])
 
 # Vercel Python serverless function handler
-async def handler(request: Any, context: Any) -> Dict[str, Any]:
+async def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Vercel serverless function handler for FastAPI application.
-    
+
     This function converts Vercel's request format to ASGI format
     and processes it through the FastAPI application.
     """
     try:
-        # Extract request information
-        method = request.method
-        path = request.path
-        headers = dict(request.headers)
-        query_params = dict(request.query)
-        
-        # Get request body if present
-        body = await request.body() if hasattr(request, 'body') else b''
-        
+        # Extract request information from event dict
+        method = event.get('method', 'GET')
+        path = event.get('path', '/')
+        # Strip /api prefix for routing
+        if path.startswith('/api'):
+            path = path[4:] or '/'
+        headers = event.get('headers', {})
+        query_params = event.get('query', {})
+
+        # Get request body
+        body_str = event.get('body', '')
+        if event.get('encoding') == 'base64':
+            import base64
+            body = base64.b64decode(body_str)
+        else:
+            body = body_str.encode('utf-8') if body_str else b''
+
         # Prepare ASGI scope
         scope = {
             'type': 'http',
@@ -50,10 +58,10 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
             'path': path,
             'query_string': '&'.join([f"{k}={v}" for k, v in query_params.items()]).encode(),
             'headers': [[k.lower().encode(), v.encode()] for k, v in headers.items()],
-            'scheme': 'https' if request.headers.get('x-forwarded-proto') == 'https' else 'http',
-            'server': (request.headers.get('host', 'localhost'), 443 if request.headers.get('x-forwarded-proto') == 'https' else 80),
+            'scheme': 'https' if headers.get('x-forwarded-proto') == 'https' else 'http',
+            'server': (headers.get('host', 'localhost'), 443 if headers.get('x-forwarded-proto') == 'https' else 80),
         }
-        
+
         # Create ASGI receive function
         async def receive():
             return {
@@ -61,7 +69,7 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
                 'body': body,
                 'more_body': False
             }
-        
+
         # Create ASGI send function
         response_data = {}
         async def send(message):
@@ -70,19 +78,22 @@ async def handler(request: Any, context: Any) -> Dict[str, Any]:
                 response_data['headers'] = {k.decode(): v.decode() for k, v in message.get('headers', [])}
             elif message['type'] == 'http.response.body':
                 response_data['body'] = message.get('body', b'')
-        
+
         # Run the FastAPI app with ASGI
         await app(scope, receive, send)
-        
+
         # Prepare response
+        response_body = response_data.get('body', b'')
+        if isinstance(response_body, bytes):
+            response_body = response_body.decode('utf-8')
         response = {
             'statusCode': response_data.get('status', 200),
             'headers': response_data.get('headers', {}),
-            'body': response_data.get('body', b'').decode('utf-8') if response_data.get('body') else ''
+            'body': response_body
         }
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error in handler: {e}")
         return {
