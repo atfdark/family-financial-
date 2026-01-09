@@ -12,8 +12,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 try:
-    # Import the FastAPI app from the main module
-    from main import app
+    # Import the FastAPI app from the fastapi_backend module
+    from fastapi_backend.main import app
     
     logger.info("Vercel API entry point loaded successfully")
     logger.info(f"FastAPI app routes: {[route.path for route in app.routes]}")

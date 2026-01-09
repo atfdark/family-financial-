@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List
 from uuid import UUID
-from datetime import date as Date
+from datetime import date as Date, datetime
+from decimal import Decimal
 
 # Authentication Models
 class LoginRequest(BaseModel):
-    email: str = Field(..., description="User email")
+    email: EmailStr = Field(..., description="User email")
     password: str = Field(..., description="User password")
 
 class RegisterRequest(BaseModel):
-    username: str = Field(..., description="Username (used as email)")
+    email: EmailStr = Field(..., description="User email")
+    username: Optional[str] = Field(None, description="Optional display name")
     password: str = Field(..., description="User password")
 
 class TokenResponse(BaseModel):
@@ -24,7 +26,7 @@ class UserResponse(BaseModel):
 
 # Expense Models
 class ExpenseCreate(BaseModel):
-    amount: float = Field(..., description="Expense amount")
+    amount: Decimal = Field(..., description="Expense amount")
     date: Date = Field(..., description="Expense date")
     category_id: UUID = Field(..., description="Category UUID")
     payment_method_id: UUID = Field(..., description="Payment method UUID")
@@ -33,13 +35,13 @@ class ExpenseCreate(BaseModel):
 class ExpenseResponse(BaseModel):
     id: UUID
     user_id: UUID
-    amount: float
+    amount: Decimal
     date: Date
     category_id: Optional[UUID]
     payment_method_id: Optional[UUID]
     description: Optional[str]
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
     category_name: Optional[str]
     payment_method_name: Optional[str]
     user_name: Optional[str]

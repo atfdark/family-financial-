@@ -148,3 +148,12 @@ family-financial-tracker/
 4. Refer to `VIRTUAL_ENV_SETUP.md` for detailed usage instructions
 
 The setup is now complete and ready for development!
+
+---
+
+## Security & Secret Handling 🔐
+
+- If any live secrets (Supabase keys, DB passwords, session/JWT secrets) were accidentally committed, rotate them immediately in the provider dashboard and any CI/hosting environment.
+- After rotating, remove committed secrets from git history (recommended tooling: BFG or `git filter-repo` / `git filter-branch`) and force-push to the remote, then coordinate with the team to reclone repositories.
+- Ensure `.env` is in `.gitignore` (already added). Commit a `.env.example` with placeholders and clear instructions about using secure secrets from environment management.
+- For production, use your hosting provider or a secrets manager (Vault, AWS Secrets Manager, GitHub Secrets, etc.) rather than storing secrets in repository files.

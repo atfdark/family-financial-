@@ -43,6 +43,11 @@
             
             <form id="register-form" class="login-form">
                 <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input type="email" id="register-email" name="email" placeholder="your@email.com" required>
+                </div>
+
+                <div class="form-group">
                     <label for="register-username">Username</label>
                     <input type="text" id="register-username" name="username" placeholder="Choose a username" required>
                 </div>
@@ -122,6 +127,7 @@
             registerForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
 
+                const email = document.getElementById('register-email').value.trim();
                 const username = document.getElementById('register-username').value.trim();
                 const password = document.getElementById('register-password').value;
                 const confirmPassword = document.getElementById('confirm-password').value;
@@ -131,6 +137,11 @@
                 registerSuccess.style.display = 'none';
                 
                 // Validation
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showError('Please provide a valid email address');
+                    return;
+                }
+
                 if (username.length < 3) {
                     showError('Username must be at least 3 characters long');
                     return;
@@ -153,6 +164,7 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
+                            email: email,
                             username: username,
                             password: password
                         })
@@ -160,8 +172,17 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        localStorage.setItem('jwt_token', data.token);
-                        registerSuccess.textContent = 'Account created successfully! Redirecting to dashboard...';
+
+                        // Prefer server-set httpOnly cookies for auth. Do NOT store JWTs in localStorage.
+                        if (data && typeof data.token === 'string') {
+                            // Token present — server should set an httpOnly cookie instead of returning it to client.
+                            // Do not call localStorage.setItem here; storing tokens in localStorage is vulnerable to XSS.
+                            console.warn('Auth token returned in response; ensure server sets httpOnly cookie and do not persist token in localStorage.');
+                        } else {
+                            // No token returned — assume server set an httpOnly cookie for the session.
+                        }
+
+                        registerSuccess.textContent = 'Account created successfully! Redirecting to login...';
                         registerSuccess.style.display = 'block';
 
                         // Hide success message after 2 seconds and redirect

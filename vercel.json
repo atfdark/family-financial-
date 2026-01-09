@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/vercel_handler.py": {
+    "api/index.py": {
       "runtime": "@vercel/python@3.2.0",
       "maxDuration": 30
     }
@@ -17,11 +17,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/vercel_handler.py"
+      "dest": "/api/index.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/vercel_handler.py"
+      "dest": "/api/index.py"
     }
   ],
   "env": {

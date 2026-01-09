@@ -6,7 +6,9 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from utils.database import initialize_database
+from database import init_supabase_clients
 from routers.auth import router as auth_router
+import asyncio
 from routers.expenses import router as expenses_router
 from routers.dashboard import router as dashboard_router
 from routers.categories import router as categories_router
@@ -18,9 +20,36 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    import inspect
+
     logger.info("Starting FastAPI application")
-    initialize_database()
-    logger.info("Database initialized")
+
+    # Initialize database (async-aware): if initialize_database is async, await it;
+    # otherwise run it in a thread to avoid blocking the event loop.
+    try:
+        if inspect.iscoroutinefunction(initialize_database):
+            await initialize_database()
+        else:
+            await asyncio.to_thread(initialize_database)
+        logger.info("Database initialized")
+    except Exception:
+        logger.exception("Database initialization failed")
+        raise
+
+    # Initialize Supabase clients in a thread if necessary, but assign to app.state
+    # on the main thread to avoid mutating app from a worker thread.
+    try:
+        if inspect.iscoroutinefunction(init_supabase_clients):
+            user_client, admin_client = await init_supabase_clients()
+        else:
+            user_client, admin_client = await asyncio.to_thread(init_supabase_clients)
+        app.state.supabase_user_client = user_client
+        app.state.supabase_admin_client = admin_client
+        logger.info("Supabase clients initialized")
+    except Exception:
+        logger.exception("Supabase client initialization failed")
+        raise
+
     yield
     # Shutdown
     logger.info("Shutting down FastAPI application")

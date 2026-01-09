@@ -1,5 +1,9 @@
 from typing import Dict, Any, Optional
 from config import settings
+from fastapi import FastAPI, Request
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Mock database for testing registration functionality
 class MockSupabaseClient:
@@ -70,15 +74,53 @@ class MockResponse:
         self.data = data
 
 # Global mock client
-_mock_client = None
+_mock_client: Optional[MockSupabaseClient] = None
 
-def get_supabase_admin_client():
-    """Get the mock Supabase client for testing"""
+# Keys on app.state for real clients
+SUPABASE_USER_CLIENT_KEY = "supabase_user_client"
+SUPABASE_ADMIN_CLIENT_KEY = "supabase_admin_client"
+
+
+def init_supabase_clients(user_client=None, admin_client=None):
+    """Initialize supabase clients and return them.
+
+    Returns a tuple `(user_client, admin_client)` that should be assigned on `app.state`
+    by the caller in the main thread. This avoids mutating application state from
+    a worker thread or background task and keeps initialization testable.
+
+    If running in tests, user_client/admin_client can be provided (e.g., MockSupabaseClient).
+    """
+    if user_client is None or admin_client is None:
+        # In a real environment, initialize actual Supabase clients here (deferred to runtime)
+        logger.debug("No external supabase clients provided; using mock client")
+        global _mock_client
+        if _mock_client is None:
+            _mock_client = MockSupabaseClient()
+        return _mock_client, _mock_client
+
+    return user_client, admin_client
+
+
+def get_supabase_admin_client(request: Optional[Request] = None):
+    """Return the admin client from request.app.state if available, else return mock client."""
+    if request is not None:
+        client = getattr(request.app.state, SUPABASE_ADMIN_CLIENT_KEY, None)
+        if client is not None:
+            return client
+    # Fallback to global/mock
     global _mock_client
     if _mock_client is None:
         _mock_client = MockSupabaseClient()
     return _mock_client
 
-def get_supabase_client():
-    """Get the mock Supabase client for testing"""
+
+def get_supabase_client(request: Optional[Request] = None):
+    """Return the user client from request.app.state if available, else return admin or mock client."""
+    if request is not None:
+        client = getattr(request.app.state, SUPABASE_USER_CLIENT_KEY, None)
+        if client is not None:
+            return client
+        client = getattr(request.app.state, SUPABASE_ADMIN_CLIENT_KEY, None)
+        if client is not None:
+            return client
     return get_supabase_admin_client()

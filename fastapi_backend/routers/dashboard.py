@@ -1,14 +1,16 @@
-from fastapi import APIRouter, HTTPException, status, Query
+import logging
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from models import UserInfo, MonthlyDashboardResponse, YearlyDashboardResponse
 from database import get_supabase_client
 from middleware.auth import get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/users", response_model=List[UserInfo])
-async def get_users(current_user: dict = get_current_user):
+async def get_users(current_user: dict = Depends(get_current_user)):
     """Get all users (requires authentication)"""
     supabase = get_supabase_client()
 
@@ -21,24 +23,36 @@ async def get_users(current_user: dict = get_current_user):
         return response.data
 
     except Exception as e:
+        logger.exception("Failed to get users")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get users"
         )
-
 @router.get("/{user_id}/monthly", response_model=MonthlyDashboardResponse)
 async def get_monthly_dashboard(
     user_id: str,
     year: Optional[int] = Query(None, description="Year for dashboard"),
     month: Optional[int] = Query(None, description="Month for dashboard"),
-    current_user: dict = get_current_user
+    current_user: dict = Depends(get_current_user)
 ):
     """Get monthly dashboard data"""
-    if str(current_user["id"]) != user_id:
+    if str(current_user["id"]) != str(user_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
+
+    # Validate year/month inputs
+    now = datetime.now(timezone.utc)
+
+    try:
+        target_year = int(year) if year is not None else now.year
+        target_month = int(month) if month is not None else now.month
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid year or month")
+
+    if target_month < 1 or target_month > 12 or target_year < 1900 or target_year > now.year:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Year or month out of range")
 
     supabase = get_supabase_client()
 
@@ -52,16 +66,16 @@ async def get_monthly_dashboard(
             )
         user = user_response.data[0]
 
-        # Default to current year/month
-        current_year = datetime.utcnow().year
-        current_month = datetime.utcnow().month
-        target_year = year or current_year
-        target_month = month or current_month
-
-        date_filter = f"{target_year}-{str(target_month).zfill(2)}"
+        # Use a date range rather than LIKE where possible
+        start = f"{target_year}-{str(target_month).zfill(2)}-01"
+        # compute next month
+        if target_month == 12:
+            next_month = f"{target_year + 1}-01-01"
+        else:
+            next_month = f"{target_year}-{str(target_month + 1).zfill(2)}-01"
 
         # Get total spent
-        total_response = supabase.table('expenses').select('amount').eq('user_id', user_id).like('date', f"{date_filter}%").execute()
+        total_response = supabase.table('expenses').select('amount').eq('user_id', user_id).gte('date', start).lt('date', next_month).execute()
         total_spent = sum(float(expense['amount']) for expense in (total_response.data or []))
 
         # Get top categories
@@ -94,6 +108,7 @@ async def get_monthly_dashboard(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Failed to get monthly dashboard for user %s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get monthly dashboard"
@@ -103,14 +118,24 @@ async def get_monthly_dashboard(
 async def get_yearly_dashboard(
     user_id: str,
     year: Optional[int] = Query(None, description="Year for dashboard"),
-    current_user: dict = get_current_user
+    current_user: dict = Depends(get_current_user)
 ):
     """Get yearly dashboard data"""
-    if str(current_user["id"]) != user_id:
+    if str(current_user["id"]) != str(user_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
+
+    now = datetime.now(timezone.utc)
+
+    try:
+        target_year = int(year) if year is not None else now.year
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid year")
+
+    if target_year < 1900 or target_year > now.year:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Year out of range")
 
     supabase = get_supabase_client()
 
@@ -124,12 +149,12 @@ async def get_yearly_dashboard(
             )
         user = user_response.data[0]
 
-        # Default to current year
-        current_year = datetime.utcnow().year
-        target_year = year or current_year
+        # Use a date range for the full year
+        start = f"{target_year}-01-01"
+        next_year = f"{target_year + 1}-01-01"
 
         # Get total spent
-        total_response = supabase.table('expenses').select('amount').eq('user_id', user_id).like('date', f"{target_year}%").execute()
+        total_response = supabase.table('expenses').select('amount').eq('user_id', user_id).gte('date', start).lt('date', next_year).execute()
         total_spent = sum(float(expense['amount']) for expense in (total_response.data or []))
 
         # Get monthly trends
@@ -178,6 +203,7 @@ async def get_yearly_dashboard(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Failed to get yearly dashboard for user %s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get yearly dashboard"

@@ -118,6 +118,7 @@ All dependencies use pinned versions for reproducible builds. When updating depe
 - Regular security audits should be performed using tools like `pip-audit`
 - Consider using virtual environments to isolate dependencies
 - Keep dependencies updated to receive security patches
+- Note: `passlib[bcrypt]==1.7.4` relies on a compatible `bcrypt` package; we pin `bcrypt<5.0.0` in the requirements to avoid incompatibilities when upgrading libraries.
 
 ## Troubleshooting
 
