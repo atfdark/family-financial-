@@ -3,7 +3,7 @@ import sys
 import json
 
 # Add the fastapi_backend directory to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'fastapi_backend'))
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'fastapi_backend'))
 
 # Simple health check function for Vercel
 def handler(request):
