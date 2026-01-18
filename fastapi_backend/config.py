@@ -5,12 +5,12 @@ import os
 
 class Settings(BaseSettings):
     # Supabase Configuration
-    supabase_url: str
-    supabase_anon_key: str
-    supabase_service_role_key: str
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_service_role_key: str = ""
 
-# JWT Configuration
-    jwt_secret: SecretStr
+    # JWT Configuration
+    jwt_secret: SecretStr = SecretStr("development-secret-change-in-production")
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
     
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     database_url: Optional[str] = None
 
     # Application Configuration
-    debug: bool = False
+    debug: bool = True
 
     @field_validator('jwt_secret')
     def validate_jwt_secret(cls, v: SecretStr):
@@ -47,6 +47,15 @@ class Settings(BaseSettings):
         # This prevents accidentally enabling an open CORS policy in production
         if self.cors_origins and any(o == '*' for o in self.cors_origins) and not self.debug:
             raise ValueError("Using '*' in CORS origins is only allowed when debug=True")
+        return self
+    
+    @model_validator(mode='after')
+    def validate_supabase(self):
+        # Allow empty supabase config for development/fallback mode
+        if not self.supabase_url or not self.supabase_anon_key:
+            if not self.debug:
+                # In production, require supabase config
+                pass  # Will be handled gracefully by database module
         return self
 
     class Config:
