@@ -34,7 +34,7 @@ class ExpenseCreate(BaseModel):
 
 class ExpenseResponse(BaseModel):
     id: UUID
-    user_id: UUID
+    user_id: str
     amount: Decimal
     date: Date
     category_id: Optional[UUID]
@@ -62,7 +62,7 @@ class PaymentMethodResponse(BaseModel):
 
 # Dashboard Models
 class UserInfo(BaseModel):
-    id: UUID
+    id: str
     name: str
     email: str
 

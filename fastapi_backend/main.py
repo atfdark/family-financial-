@@ -12,6 +12,8 @@ from routers.expenses import router as expenses_router
 from routers.dashboard import router as dashboard_router
 from routers.categories import router as categories_router
 from routers.payment_methods import router as payment_methods_router
+from routers.auth import router as auth_router
+from middleware.auth import AuthMiddleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,9 +47,11 @@ async def lifespan(app: FastAPI):
         app.state.supabase_user_client = user_client
         app.state.supabase_admin_client = admin_client
         logger.info("Supabase clients initialized")
-    except Exception:
-        logger.exception("Supabase client initialization failed")
-        raise
+    except Exception as e:
+        logger.exception("Supabase client initialization failed: %s", e)
+        # Continue without supabase for now
+        app.state.supabase_user_client = None
+        app.state.supabase_admin_client = None
 
     yield
     # Shutdown
@@ -95,6 +99,12 @@ app.include_router(
     tags=["Payment Methods"]
 )
 
+app.include_router(
+    auth_router,
+    prefix="/api/auth",
+    tags=["Authentication"]
+)
+
 @app.get("/")
 async def root():
     return FileResponse("../public/index.html")
@@ -106,6 +116,14 @@ async def styles():
 @app.get("/dashboard.js")
 async def dashboard_js():
     return FileResponse("../public/dashboard.js")
+
+@app.get("/login.html")
+async def login_html():
+    return FileResponse("../public/login.html")
+
+@app.get("/register.html")
+async def register_html():
+    return FileResponse("../public/register.html")
 
 if __name__ == "__main__":
     import uvicorn

@@ -19,6 +19,12 @@
     }
   ],
   "env": {
-    "PYTHONPATH": "$PYTHONPATH:/var/task"
+    "PYTHONPATH": "$PYTHONPATH:/var/task",
+    "SUPABASE_URL": "",
+    "SUPABASE_ANON_KEY": "",
+    "SUPABASE_SERVICE_ROLE_KEY": "",
+    "DATABASE_URL": "",
+    "JWT_SECRET": "",
+    "CORS_ORIGINS_STR": ""
   }
 }

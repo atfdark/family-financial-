@@ -1,9 +1,10 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from typing import List, Optional
 from datetime import datetime, timezone
 from models import UserInfo, MonthlyDashboardResponse, YearlyDashboardResponse
 from database import get_supabase_client
+from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -11,10 +12,11 @@ router = APIRouter()
 @router.get("/monthly", response_model=MonthlyDashboardResponse)
 async def get_monthly_dashboard(
     year: Optional[int] = Query(None, description="Year for dashboard"),
-    month: Optional[int] = Query(None, description="Month for dashboard")
+    month: Optional[int] = Query(None, description="Month for dashboard"),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get monthly dashboard data"""
-    user_id = "1"
+    user_id = current_user["id"]
 
     # Validate year/month inputs
     now = datetime.now(timezone.utc)
@@ -31,8 +33,8 @@ async def get_monthly_dashboard(
     supabase = get_supabase_client()
 
     try:
-        # Hardcoded user for no-auth setup
-        user = {"id": "1", "name": "Family"}
+        # Use authenticated user
+        user = {"id": current_user["id"], "name": current_user.get("name", ""), "email": current_user["email"]}
 
         # Use a date range rather than LIKE where possible
         start = f"{target_year}-{str(target_month).zfill(2)}-01"
@@ -84,10 +86,11 @@ async def get_monthly_dashboard(
 
 @router.get("/yearly", response_model=YearlyDashboardResponse)
 async def get_yearly_dashboard(
-    year: Optional[int] = Query(None, description="Year for dashboard")
+    year: Optional[int] = Query(None, description="Year for dashboard"),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get yearly dashboard data"""
-    user_id = "1"
+    user_id = current_user["id"]
 
     now = datetime.now(timezone.utc)
 
@@ -102,8 +105,8 @@ async def get_yearly_dashboard(
     supabase = get_supabase_client()
 
     try:
-        # Hardcoded user for no-auth setup
-        user = {"id": "1", "name": "Family"}
+        # Use authenticated user
+        user = {"id": current_user["id"], "name": current_user.get("name", ""), "email": current_user["email"]}
 
         # Use a date range for the full year
         start = f"{target_year}-01-01"

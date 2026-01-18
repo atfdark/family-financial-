@@ -3,11 +3,11 @@
 /* 1. Global Styles with Purple-Blue Gradient Color Scheme */
 :root {
   /* Primary Color Scheme */
-  --primary-gradient-start: #667eea;
-  --primary-gradient-end: #764ba2;
-  --primary-color: #667eea;
-  --secondary-color: #764ba2;
-  --accent-color: #f093fb;
+  --primary-gradient-start: #2980B9; /* Royal Blue for savings/security */
+  --primary-gradient-end: #8E44AD; /* Amethyst Purple for investments/wealth */
+  --primary-color: #2980B9; /* Royal Blue for savings/security */
+  --secondary-color: #8E44AD; /* Amethyst Purple for investments/wealth */
+  --accent-color: #27AE60; /* Emerald Green for inflows/profits */
   
   /* Neutral Colors */
   --bg-color: #f8f9fa;
@@ -17,10 +17,11 @@
   --text-light: #ffffff;
   
   /* Status Colors */
-  --success-color: #28a745;
-  --danger-color: #dc3545;
-  --warning-color: #ffc107;
-  --info-color: #17a2b8;
+  --success-color: #27AE60; /* Emerald Green for inflows/profits */
+  --danger-color: #333333; /* Soft Charcoal for outflows/expenses */
+  --warning-color: #E74C3C; /* Coral Red for warnings/debt */
+  --info-color: #2980B9; /* Royal Blue for savings/security */
+  --investment-color: #8E44AD; /* Amethyst Purple for investments/wealth */
   
   /* Border and Shadow */
   --border-color: #dee2e6;

@@ -35,8 +35,8 @@ def initialize_database():
 
                 print("Creating database schema...")
 
-                # Read and execute schema files
-                schema_files = ['supabase_schema.sql', 'supabase_functions.sql']
+# Read and execute schema files
+                schema_files = ['supabase_schema.sql']
 
                 # Verify that all required schema files exist before proceeding
                 schema_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), '..', schema_file)) for schema_file in schema_files]

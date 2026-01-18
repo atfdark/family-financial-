@@ -16,13 +16,177 @@ class FamilyFinancialDashboard {
     }
 
     init() {
-        this.currentUser = {id: "1", name: "Family"};
+        // Check if we're on auth pages
+        if (this.isAuthPage()) {
+            this.setupAuthEventListeners();
+            return;
+        }
+
+        // Check authentication
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        this.currentUser = this.getCurrentUserFromToken(token);
+        this.updateUserDisplay();
         this.setupEventListeners();
         this.populateDateControls();
         this.loadInitialData();
     }
 
-    // ===== NO AUTH =====
+    // ===== AUTHENTICATION =====
+
+    isAuthPage() {
+        return window.location.pathname.includes('login.html') || window.location.pathname.includes('register.html');
+    }
+
+    getCurrentUserFromToken(token) {
+        try {
+            // Decode JWT payload (simple decode, not full verification)
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return {
+                id: payload.sub,
+                name: payload.name || payload.email,
+                email: payload.email
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    setupAuthEventListeners() {
+        if (window.location.pathname.includes('login.html')) {
+            this.setupLoginForm();
+        } else if (window.location.pathname.includes('register.html')) {
+            this.setupRegisterForm();
+        }
+    }
+
+    setupLoginForm() {
+        const form = document.getElementById('login-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
+    }
+
+    setupRegisterForm() {
+        const form = document.getElementById('register-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleRegister();
+            });
+        }
+    }
+
+    async handleLogin() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        this.showAuthLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem('auth_token', result.token);
+                localStorage.setItem('user_info', JSON.stringify(result.user));
+                window.location.href = 'index.html';
+            } else {
+                this.showAuthError(result.detail || 'Login failed');
+            }
+        } catch (error) {
+            this.showAuthError('Network error. Please try again.');
+        } finally {
+            this.showAuthLoading(false);
+        }
+    }
+
+    async handleRegister() {
+        const username = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        if (password !== confirmPassword) {
+            this.showAuthError('Passwords do not match');
+            return;
+        }
+
+        this.showAuthLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, username })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem('auth_token', result.token);
+                localStorage.setItem('user_info', JSON.stringify(result.user));
+                window.location.href = 'index.html';
+            } else {
+                this.showAuthError(result.detail || 'Registration failed');
+            }
+        } catch (error) {
+            this.showAuthError('Network error. Please try again.');
+        } finally {
+            this.showAuthLoading(false);
+        }
+    }
+
+    showAuthLoading(show) {
+        const loading = document.getElementById('loading');
+        const form = document.getElementById('login-form') || document.getElementById('register-form');
+        if (loading) loading.style.display = show ? 'block' : 'none';
+        if (form) form.style.display = show ? 'none' : 'block';
+    }
+
+    showAuthError(message) {
+        const errorDiv = document.getElementById('error-message');
+        if (errorDiv) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    updateUserDisplay() {
+        const userNameDisplay = document.getElementById('user-name-display');
+        if (userNameDisplay && this.currentUser) {
+            userNameDisplay.textContent = this.currentUser.name || this.currentUser.email;
+        }
+    }
+
+    handleLogout() {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_info');
+        window.location.href = 'login.html';
+    }
+
+    getAuthHeaders() {
+        const token = localStorage.getItem('auth_token');
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        };
+    }
 
     // ===== EXPENSE MANAGEMENT =====
     
@@ -85,7 +249,13 @@ class FamilyFinancialDashboard {
             });
         }
 
-        // No logout
+        // Logout
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
 
         // Add reminder
         const addReminderBtn = document.getElementById('addReminderBtn');
@@ -131,7 +301,7 @@ class FamilyFinancialDashboard {
         try {
             const response = await fetch('/api/expenses', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.getAuthHeaders(),
                 body: JSON.stringify(formData)
             });
 
@@ -219,7 +389,9 @@ class FamilyFinancialDashboard {
 
     async loadCategories() {
         try {
-            const response = await fetch('/api/categories');
+            const response = await fetch('/api/categories', {
+                headers: this.getAuthHeaders()
+            });
             if (response.ok) {
                 this.categories = await response.json();
                 this.populateDropdown('expense-category', this.categories, 'name', 'id');
@@ -231,7 +403,9 @@ class FamilyFinancialDashboard {
 
     async loadPaymentMethods() {
         try {
-            const response = await fetch('/api/payment-methods');
+            const response = await fetch('/api/payment-methods', {
+                headers: this.getAuthHeaders()
+            });
             if (response.ok) {
                 this.paymentMethods = await response.json();
                 this.populateDropdown('expense-payment-method', this.paymentMethods, 'name', 'id');
@@ -284,7 +458,9 @@ class FamilyFinancialDashboard {
     async loadDashboard() {
         try {
             const url = `/api/dashboard/${this.currentView}?year=${this.currentYear}&month=${this.currentMonth}`;
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: this.getAuthHeaders()
+            });
 
             if (response.ok) {
                 const data = await response.json();
@@ -316,11 +492,15 @@ class FamilyFinancialDashboard {
         const balancePeriod = document.getElementById('balancePeriod');
 
         const periodText = this.getPeriodText();
+        const balanceAmount = (data.total_income || 0) - (data.total_expenses || 0);
 
         if (totalIncome) totalIncome.textContent = this.formatCurrency(data.total_income || 0);
         if (totalExpenses) totalExpenses.textContent = this.formatCurrency(data.total_expenses || 0);
-        if (balance) balance.textContent = this.formatCurrency((data.total_income || 0) - (data.total_expenses || 0));
-        
+        if (balance) {
+            balance.textContent = this.formatCurrency(balanceAmount);
+            balance.classList.toggle('negative-balance', balanceAmount < 0);
+        }
+
         if (incomePeriod) incomePeriod.textContent = periodText;
         if (expensesPeriod) expensesPeriod.textContent = periodText;
         if (balancePeriod) balancePeriod.textContent = periodText;
@@ -437,12 +617,12 @@ class FamilyFinancialDashboard {
                 datasets: [{
                     label: 'Monthly Expenses',
                     data: data,
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderColor: '#2980B9', /* Royal Blue for savings/security */
+                    backgroundColor: 'rgba(41, 128, 185, 0.1)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
-                    pointBackgroundColor: '#2563eb',
+                    pointBackgroundColor: '#2980B9',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
                     pointRadius: 4
@@ -580,10 +760,10 @@ class FamilyFinancialDashboard {
     
     generateColors(count) {
         const colors = [
-            '#2563eb', '#16a34a', '#dc2626', '#ca8a04', '#7c3aed',
-            '#06b6d4', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'
+            '#27AE60', '#333333', '#E74C3C', '#2980B9', '#8E44AD', /* Financial scheme */
+            '#4d4d4d', '#666666', '#808080', '#999999', '#b3b3b3' /* Charcoal variations for more categories */
         ];
-        
+
         return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
     }
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Family Financial Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -26,7 +27,7 @@
                 </div>
                 
                 <div class="sidebar-actions">
-                    <!-- No logout needed -->
+                    <button id="logout-btn" class="secondary-btn">Logout</button>
                 </div>
             </div>
 
@@ -36,7 +37,7 @@
                 <div class="expense-section">
                     <div class="card expense-card">
                         <div class="card-header">
-                            <h3>Add New Expense</h3>
+                            <h3><i class="fas fa-plus-circle"></i> Add New Expense</h3>
                         </div>
                         <div class="card-content">
                             <form id="expense-form" class="expense-form">
@@ -125,7 +126,7 @@
                         <!-- Top Row -->
                         <div class="card total-income-card">
                             <div class="card-header">
-                                <h3>Total Income</h3>
+                                <h3><i class="fas fa-arrow-up"></i> Total Income</h3>
                             </div>
                             <div class="card-content">
                                 <div class="total-amount" id="total-income">₹0</div>
@@ -134,7 +135,7 @@
 
                         <div class="card total-expenses-card">
                             <div class="card-header">
-                                <h3>Total Expenses</h3>
+                                <h3><i class="fas fa-arrow-down"></i> Total Expenses</h3>
                             </div>
                             <div class="card-content">
                                 <div class="total-amount" id="total-expenses">₹0</div>
@@ -143,7 +144,7 @@
 
                         <div class="card reminders-card">
                             <div class="card-header">
-                                <h3>Add Reminders</h3>
+                                <h3><i class="fas fa-bell"></i> Add Reminders</h3>
                             </div>
                             <div class="card-content">
                                 <div class="reminder-form">
@@ -164,7 +165,7 @@
                         <!-- Bottom Row -->
                         <div class="card categories-card">
                             <div class="card-header">
-                                <h3>Top 5 Categories</h3>
+                                <h3><i class="fas fa-list"></i> Top 5 Categories</h3>
                             </div>
                             <div class="card-content">
                                 <div id="top-categories-list" class="categories-list"></div>
@@ -173,7 +174,7 @@
 
                         <div class="card chart-card">
                             <div class="card-header">
-                                <h3>Pie Chart</h3>
+                                <h3><i class="fas fa-chart-pie"></i> Pie Chart</h3>
                             </div>
                             <div class="card-content">
                                 <canvas id="category-chart"></canvas>
@@ -192,7 +193,7 @@
                         <!-- Monthly Trends Chart (Yearly View Only) -->
                         <div class="card chart-card" id="trends-card" style="display: none;">
                             <div class="card-header">
-                                <h3>Monthly Trends</h3>
+                                <h3><i class="fas fa-chart-line"></i> Monthly Trends</h3>
                             </div>
                             <div class="card-content">
                                 <canvas id="trends-chart"></canvas>
@@ -211,6 +212,15 @@
         </div>
     </div>
 
+    <script>
+        // Check authentication status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
     <script src="dashboard.js"></script>
 </body>
 </html>

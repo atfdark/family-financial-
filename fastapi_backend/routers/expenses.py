@@ -1,17 +1,19 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from typing import List, Optional
 from uuid import UUID
 from datetime import date
 from models import ExpenseCreate, ExpenseResponse
 from database import get_supabase_client
+from .auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/", response_model=dict)
 async def create_expense(
-    expense: ExpenseCreate
+    expense: ExpenseCreate,
+    current_user: dict = Depends(get_current_user)
 ):
     """Create a new expense"""
     supabase = get_supabase_client()
@@ -29,7 +31,7 @@ async def create_expense(
             )
 
         expense_data = {
-            "user_id": "1",
+            "user_id": current_user["id"],
             "amount": parsed_amount,
             "date": str(expense.date),
             "category_id": str(expense.category_id),
@@ -64,7 +66,8 @@ async def create_expense(
 async def get_expenses(
     category_id: Optional[UUID] = Query(None, description="Category ID filter"),
     date_from: Optional[date] = Query(None, description="Start date filter"),
-    date_to: Optional[date] = Query(None, description="End date filter")
+    date_to: Optional[date] = Query(None, description="End date filter"),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get expenses with optional filters"""
     supabase = get_supabase_client()
@@ -75,7 +78,7 @@ async def get_expenses(
             *,
             category:categories(name),
             payment_method:payment_methods(name)
-        """).eq('user_id', "1")
+        """).eq('user_id', current_user["id"])
 
         if category_id:
             query = query.eq('category_id', str(category_id))

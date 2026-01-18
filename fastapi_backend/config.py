@@ -9,10 +9,13 @@ class Settings(BaseSettings):
     supabase_anon_key: str
     supabase_service_role_key: str
 
-    # JWT Configuration
+# JWT Configuration
     jwt_secret: SecretStr
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
+    
+    # Session Configuration (for compatibility)
+    session_secret: Optional[str] = None
 
     # CORS Configuration
     # Make empty by default to force explicit configuration in production

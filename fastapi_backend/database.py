@@ -2,6 +2,12 @@ from typing import Dict, Any, Optional
 from config import settings
 from fastapi import FastAPI, Request
 import logging
+try:
+    from supabase import create_client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    create_client = None
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +43,12 @@ class MockSelect:
         self.table_name = table_name
         self.fields = fields
         self.filters = filters or {}
-    
+        logger.debug(f"MockSelect created for table {table_name} with filters {self.filters}")
+
+    def order(self, *args, **kwargs):
+        logger.debug(f"MockSelect.order called with args {args} kwargs {kwargs}")
+        return self
+
     def execute(self):
         if self.table_name == 'users':
             # Simulate finding a user by email
@@ -47,6 +58,20 @@ class MockSelect:
                     if user['email'] == email:
                         return MockResponse([user])
             return MockResponse([])
+        elif self.table_name == 'categories':
+            # Mock some categories
+            return MockResponse([
+                {'id': 1, 'name': 'Food'},
+                {'id': 2, 'name': 'Transport'},
+                {'id': 3, 'name': 'Entertainment'}
+            ])
+        elif self.table_name == 'payment_methods':
+            # Mock some payment methods
+            return MockResponse([
+                {'id': 1, 'name': 'Cash'},
+                {'id': 2, 'name': 'Credit Card'},
+                {'id': 3, 'name': 'Bank Transfer'}
+            ])
         return MockResponse([])
 
 class MockInsert:
@@ -90,13 +115,16 @@ def init_supabase_clients(user_client=None, admin_client=None):
 
     If running in tests, user_client/admin_client can be provided (e.g., MockSupabaseClient).
     """
-    if user_client is None or admin_client is None:
-        # In a real environment, initialize actual Supabase clients here (deferred to runtime)
-        logger.debug("No external supabase clients provided; using mock client")
-        global _mock_client
-        if _mock_client is None:
-            _mock_client = MockSupabaseClient()
-        return _mock_client, _mock_client
+    if user_client is None and admin_client is None:
+        if SUPABASE_AVAILABLE:
+            # In a real environment, initialize actual Supabase clients here (deferred to runtime)
+            logger.debug("No external supabase clients provided; creating real clients")
+            user_client = create_client(settings.supabase_url, settings.supabase_anon_key)
+            admin_client = create_client(settings.supabase_url, settings.supabase_service_role_key)
+            return user_client, admin_client
+        else:
+            logger.warning("Supabase not available, using mock clients")
+            return None, None
 
     return user_client, admin_client
 
@@ -116,11 +144,14 @@ def get_supabase_admin_client(request: Optional[Request] = None):
 
 def get_supabase_client(request: Optional[Request] = None):
     """Return the user client from request.app.state if available, else return admin or mock client."""
+    logger.debug(f"get_supabase_client called with request: {request is not None}")
     if request is not None:
         client = getattr(request.app.state, SUPABASE_USER_CLIENT_KEY, None)
+        logger.debug(f"User client from state: {client is not None}")
         if client is not None:
             return client
         client = getattr(request.app.state, SUPABASE_ADMIN_CLIENT_KEY, None)
+        logger.debug(f"Admin client from state: {client is not None}")
         if client is not None:
             return client
     return get_supabase_admin_client()
