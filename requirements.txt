@@ -1,14 +1,4 @@
-# Minimal requirements for basic Vercel deployment
-# Remove complex dependencies that might cause import issues
+# Ultra-minimal requirements for Vercel
+# Just what we absolutely need, nothing that can cause import issues
 
-# Basic web framework
-fastapi==0.104.1
-
-# Data validation
-pydantic==2.5.0
-
-# Environment management
-python-dotenv==1.0.0
-
-# HTTP requests
-requests==2.31.0
+json
