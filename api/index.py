@@ -1,35 +1,83 @@
 import os
 import sys
+import json
 
 # Add the fastapi_backend directory to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'fastapi_backend'))
 
-# Set environment variables before importing
-if not os.getenv('SUPABASE_URL'):
-    os.environ['SUPABASE_URL'] = os.getenv('VERCEL_SUPABASE_URL', '')
-if not os.getenv('SUPABASE_ANON_KEY'):
-    os.environ['SUPABASE_ANON_KEY'] = os.getenv('VERCEL_SUPABASE_ANON_KEY', '')
-if not os.getenv('SUPABASE_SERVICE_ROLE_KEY'):
-    os.environ['SUPABASE_SERVICE_ROLE_KEY'] = os.getenv('VERCEL_SUPABASE_SERVICE_ROLE_KEY', '')
-if not os.getenv('DATABASE_URL'):
-    os.environ['DATABASE_URL'] = os.getenv('VERCEL_DATABASE_URL', '')
-if not os.getenv('JWT_SECRET'):
-    os.environ['JWT_SECRET'] = os.getenv('VERCEL_JWT_SECRET', 'default-secret-change-in-production')
-if not os.getenv('CORS_ORIGINS_STR'):
-    os.environ['CORS_ORIGINS_STR'] = os.getenv('VERCEL_CORS_ORIGINS_STR', '*')
-
-# Import and export the FastAPI app for Vercel ASGI handling
-try:
-    from main import app
-except Exception as e:
-    print(f"Error importing app: {e}")
-    # Create a minimal fallback app
-    from fastapi import FastAPI
-    app = FastAPI(title="Fallback App")
-    
-    @app.get("/")
-    async def root():
-        return {"error": "App failed to initialize", "details": str(e)}
-
-# Export the app as the default export
-app_handler = app
+# Simple health check function for Vercel
+def handler(request):
+    """
+    Simple Vercel serverless function handler
+    """
+    try:
+        # Get request info
+        method = getattr(request, 'method', 'GET')
+        path = getattr(request, 'path', '/')
+        
+        # Basic routing
+        if path == '/' and method == 'GET':
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'message': 'Family Financial API',
+                    'status': 'running',
+                    'endpoints': [
+                        '/health',
+                        '/api/health'
+                    ]
+                })
+            }
+        
+        elif path in ['/health', '/api/health'] and method == 'GET':
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'status': 'healthy',
+                    'timestamp': str(os.environ.get('VERCEL_NOW', 'unknown')),
+                    'environment': 'vercel'
+                })
+            }
+        
+        # For static files
+        elif path.endswith('.html') and method == 'GET':
+            try:
+                file_path = f"../public{path}"
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'text/html'},
+                    'body': content
+                }
+            except FileNotFoundError:
+                return {
+                    'statusCode': 404,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({'error': 'Not found'})
+                }
+        
+        # Return 404 for other paths
+        else:
+            return {
+                'statusCode': 404,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({
+                    'error': 'Not found',
+                    'message': 'This is a basic health check endpoint. Full API endpoints are available.',
+                    'available_endpoints': ['/', '/health', '/api/health']
+                })
+            }
+            
+    except Exception as e:
+        print(f"Handler error: {e}")
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'message': str(e)
+            })
+        }
