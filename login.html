@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Registration</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .form-slider {
+            display: flex;
+            width: 200%;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .form-box {
+            width: 50%;
+            padding: 40px;
+        }
+
+        h2 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            outline: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        button.submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button.submit-btn:hover {
+            transform: scale(1.02);
+            background: #f0f0f0;
+        }
+
+        .toggle-text {
+            text-align: center;
+            margin-top: 20px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .toggle-text a {
+            color: #fff;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="form-slider" id="slider">
+            
+            <div class="form-box">
+                <h2>Login</h2>
+                <form id="loginFormObj" action="/login" method="POST">
+                    <div class="input-group">
+                        <input type="text" name="username" placeholder="Username" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" name="password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Sign In</button>
+                    <p class="toggle-text">
+                        Don't have an account?
+                        <a onclick="slideRegister()">Sign up</a>
+                    </p>
+                </form>
+            </div>
+
+            <div class="form-box">
+                <h2>Register</h2>
+                <form id="regFormObj">
+                    <div class="input-group">
+                        <input type="text" placeholder="Username" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="reg-pass" placeholder="Password" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="reg-confirm" placeholder="Confirm Password" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Sign Up</button>
+                    <p class="toggle-text">
+                        Already have an account?
+                        <a onclick="slideLogin()">Sign in</a>
+                    </p>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const slider = document.getElementById('slider');
+        const regForm = document.getElementById('regFormObj');
+        const loginForm = document.getElementById('loginFormObj');
+
+        function slideRegister() {
+            slider.style.transform = "translateX(-50%)";
+        }
+
+        function slideLogin() {
+            slider.style.transform = "translateX(0%)";
+        }
+
+        regForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const pass = document.getElementById('reg-pass').value;
+            const confirm = document.getElementById('reg-confirm').value;
+
+            if(pass !== confirm) {
+                alert("Passwords do not match!");
+                return;
+            }
+
+            alert("Registration Successful!");
+            e.target.reset();
+            slideLogin();
+        });
+
+    </script>
+
+</body>
+</html>

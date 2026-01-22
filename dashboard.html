@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="font-sans text-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-gray-800 m-0 p-0 min-h-screen" style="animation: fadeIn 1s ease-in;">
+    <header class="bg-gradient-to-r from-white to-gray-100 shadow-lg p-8 flex justify-between items-center text-gray-800 border-b-2 border-gray-800">
+        <button id="sidebar-toggle" class="fas fa-bars text-2xl cursor-pointer text-gray-800 md:hidden" aria-label="Toggle sidebar"></button>
+        <h1 class="text-3xl m-0">Welcome, [User]</h1>
+        <button id="logout" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">Logout</button>
+    </header>
+    <div class="dashboard-container flex min-h-screen">
+        <aside class="sidebar w-64 bg-gradient-to-b from-white to-gray-100 shadow-lg p-4 rounded-r-2xl" role="complementary" aria-label="Navigation sidebar">
+            <button class="add-expense-btn w-full bg-green-500 text-white py-3 px-4 rounded-md hover:bg-green-600 transition-all shadow-md hover:shadow-lg mb-4" id="add-expense-btn" aria-label="Add new expense">Add New Expense</button>
+            <nav aria-label="Main navigation">
+                <ul class="space-y-2">
+                    <li><a href="#summary" class="block py-2 px-4 rounded-md hover:bg-gray-200 transition-colors">Summary</a></li>
+                    <li><a href="#transactions" class="block py-2 px-4 rounded-md hover:bg-gray-200 transition-colors">Transactions</a></li>
+                    <li><a href="#categories" class="block py-2 px-4 rounded-md hover:bg-gray-200 transition-colors">Categories</a></li>
+                </ul>
+            </nav>
+        </aside>
+        <main class="main-content flex-1 p-8 bg-gray-100" role="main">
+            <section class="filters bg-white p-4 rounded-xl shadow-md mb-8 flex flex-wrap gap-4 items-center" id="filters">
+                <div class="filter-controls flex flex-wrap gap-4 items-center">
+                    <label for="month" class="font-bold">Month:</label>
+                    <select id="month" class="p-2 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" aria-label="Select month">
+                        <option value="1" selected>January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                    <label for="year" class="font-bold">Year:</label>
+                    <select id="year" class="p-2 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" aria-label="Select year">
+                        <option value="2020">2020</option>
+                        <option value="2021">2021</option>
+                        <option value="2022">2022</option>
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                        <option value="2030">2030</option>
+                    </select>
+                    <button id="apply-filters" class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-all" aria-label="Apply filters">Apply Filters</button>
+                </div>
+            </section>
+            <section class="summary-cards flex flex-wrap justify-around gap-8 mb-8" id="summary">
+                <div class="card income bg-gradient-to-br from-green-100 to-green-200 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 text-center flex-1 min-w-64" style="animation: fadeInUp 0.6s ease-out;" role="region" aria-labelledby="income-label">
+                    <i class="fas fa-arrow-up text-6xl mb-4 text-gray-600"></i>
+                    <h3 id="income-label" class="text-xl font-bold">Total Income</h3>
+                    <p class="amount text-5xl font-bold text-green-800 m-2">₹0.00</p>
+                </div>
+                <div class="card expenses bg-gradient-to-br from-red-100 to-red-200 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 text-center flex-1 min-w-64" style="animation: fadeInUp 0.6s ease-out;" role="region" aria-labelledby="expenses-label">
+                    <i class="fas fa-arrow-down text-6xl mb-4 text-gray-600"></i>
+                    <h3 id="expenses-label" class="text-xl font-bold">Total Expenses</h3>
+                    <p class="amount text-5xl font-bold text-red-800 m-2">₹0.00</p>
+                </div>
+                <div class="card reminders bg-gradient-to-br from-blue-100 to-blue-200 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-2 text-center flex-1 min-w-64" style="animation: fadeInUp 0.6s ease-out;" role="region" aria-labelledby="reminders-label">
+                    <i class="fas fa-bell text-6xl mb-4 text-gray-600"></i>
+                    <h3 id="reminders-label" class="text-xl font-bold">Reminders</h3>
+                    <p class="amount text-5xl font-bold text-blue-800 m-2">0</p>
+                    <button id="add-reminder-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors mt-4" aria-label="Add reminder">Add Reminder</button>
+                </div>
+            </section>
+            <section class="bottom-panels">
+                <div class="panel-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="panel categories border border-gray-800 shadow-md p-4 bg-white rounded-xl" id="categories" role="region" aria-labelledby="categories-label">
+                        <h3 id="categories-label" class="text-xl font-bold mb-4">Top 5 Expense Categories</h3>
+                        <ul class="space-y-2">
+                            <li class="flex justify-between items-center">Category 1: ₹0.00 <progress value="0" max="100" class="w-full h-5 rounded-full bg-gradient-to-r from-gray-200 to-gray-300" aria-label="Category 1 progress"></progress></li>
+                            <li class="flex justify-between items-center">Category 2: ₹0.00 <progress value="0" max="100" class="w-full h-5 rounded-full bg-gradient-to-r from-gray-200 to-gray-300" aria-label="Category 2 progress"></progress></li>
+                            <li class="flex justify-between items-center">Category 3: ₹0.00 <progress value="0" max="100" class="w-full h-5 rounded-full bg-gradient-to-r from-gray-200 to-gray-300" aria-label="Category 3 progress"></progress></li>
+                            <li class="flex justify-between items-center">Category 4: ₹0.00 <progress value="0" max="100" class="w-full h-5 rounded-full bg-gradient-to-r from-gray-200 to-gray-300" aria-label="Category 4 progress"></progress></li>
+                            <li class="flex justify-between items-center">Category 5: ₹0.00 <progress value="0" max="100" class="w-full h-5 rounded-full bg-gradient-to-r from-gray-200 to-gray-300" aria-label="Category 5 progress"></progress></li>
+                        </ul>
+                    </div>
+                    <div class="panel chart border border-gray-800 shadow-md p-4 bg-white rounded-xl" role="region" aria-labelledby="chart-label">
+                        <h3 id="chart-label" class="text-xl font-bold mb-4">Pie Chart</h3>
+                        <canvas id="pieChart" aria-label="Expense breakdown pie chart"></canvas>
+                    </div>
+                    <div class="panel transactions border border-gray-800 shadow-md p-4 bg-white rounded-xl" id="transactions" role="region" aria-labelledby="transactions-label">
+                        <h3 id="transactions-label" class="text-xl font-bold mb-4">Recent Transactions</h3>
+                        <table class="w-full border-collapse bg-white rounded-xl overflow-hidden shadow-md mt-4">
+                            <thead>
+                                <tr class="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+                                    <th class="p-4 text-left font-bold">Date</th>
+                                    <th class="p-4 text-left font-bold">Description</th>
+                                    <th class="p-4 text-left font-bold">Amount</th>
+                                    <th class="p-4 text-left font-bold">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="even:bg-gray-50 hover:bg-gray-100">
+                                    <td class="p-4">2026-01-01</td>
+                                    <td class="p-4">Sample Transaction</td>
+                                    <td class="p-4">₹100.00</td>
+                                    <td class="p-4">
+                                        <button class="text-blue-600 hover:underline mr-2" aria-label="Edit transaction">Edit</button>
+                                        <button class="text-red-600 hover:underline" aria-label="Delete transaction">Delete</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <!-- Modals -->
+    <div id="add-expense-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden" role="dialog" aria-labelledby="add-expense-title" aria-hidden="true">
+        <div class="modal-content bg-white border border-gray-800 shadow-lg p-8 max-w-md w-full rounded-xl">
+            <h3 id="add-expense-title" class="text-xl font-bold mb-4">Add New Expense</h3>
+            <div id="add-expense-error" aria-live="assertive" class="sr-only"></div>
+            <form id="add-expense-form" class="flex flex-col">
+                <label for="expense-who" class="mb-2 font-bold">Who:</label>
+                <input type="text" id="expense-who" name="expense-who" class="p-2 mb-4 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" required aria-describedby="expense-who-desc">
+                <span id="expense-who-desc" class="sr-only">Enter the person who performed the expense</span>
+
+                <label for="payment-method" class="mb-2 font-bold">Payment Method:</label>
+                <select id="payment-method" name="payment-method" class="p-2 mb-4 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" required aria-describedby="payment-method-desc">
+                    <option value="Method 1">Method 1</option>
+                    <option value="Method 2">Method 2</option>
+                    <option value="Method 3">Method 3</option>
+                    <option value="Method 4">Method 4</option>
+                    <option value="Method 5">Method 5</option>
+                    <option value="Method 6">Method 6</option>
+                    <option value="Method 7">Method 7</option>
+                    <option value="Method 8">Method 8</option>
+                    <option value="Method 9">Method 9</option>
+                    <option value="Method 10">Method 10</option>
+                    <option value="Method 11">Method 11</option>
+                    <option value="Method 12">Method 12</option>
+                </select>
+                <span id="payment-method-desc" class="sr-only">Select the payment method used</span>
+
+                <label for="expense-amount" class="mb-2 font-bold">Amount:</label>
+                <input type="number" id="expense-amount" name="expense-amount" class="p-2 mb-4 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" required aria-describedby="expense-amount-desc">
+                <span id="expense-amount-desc" class="sr-only">Enter the expense amount</span>
+
+                <label for="expense-description" class="mb-2 font-bold">Description:</label>
+                <input type="text" id="expense-description" name="expense-description" class="p-2 mb-4 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" required aria-describedby="expense-description-desc">
+                <span id="expense-description-desc" class="sr-only">Enter a description for the expense</span>
+
+                <button type="submit" class="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors" aria-label="Submit add expense form">Add Expense</button>
+                <button type="button" class="close-modal bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 transition-colors mt-2" aria-label="Cancel and close modal">Cancel</button>
+            </form>
+        </div>
+    </div>
+    <div id="add-reminder-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden" role="dialog" aria-labelledby="add-reminder-title" aria-hidden="true">
+        <div class="modal-content bg-white border border-gray-800 shadow-lg p-8 max-w-md w-full rounded-xl">
+            <h3 id="add-reminder-title" class="text-xl font-bold mb-4">Add Reminder</h3>
+            <div id="add-reminder-error" aria-live="assertive" class="sr-only"></div>
+            <form id="add-reminder-form" class="flex flex-col">
+                <label for="reminder-description" class="mb-2 font-bold">Description:</label>
+                <input type="text" id="reminder-description" name="reminder-description" class="p-2 mb-4 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" required aria-describedby="reminder-description-desc">
+                <span id="reminder-description-desc" class="sr-only">Enter the reminder description</span>
+
+                <label for="reminder-date" class="mb-2 font-bold">Date:</label>
+                <input type="date" id="reminder-date" name="reminder-date" class="p-2 mb-4 border border-gray-300 rounded-md focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500" required aria-describedby="reminder-date-desc">
+                <span id="reminder-date-desc" class="sr-only">Select the reminder date</span>
+
+                <button type="submit" class="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors" aria-label="Submit add reminder form">Add Reminder</button>
+                <button type="button" class="close-modal bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 transition-colors mt-2" aria-label="Cancel and close modal">Cancel</button>
+            </form>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,22 +1,32 @@
 {
-  "name": "family-financial-api",
+  "name": "family-financial-",
   "version": "1.0.0",
-  "description": "Family Financial Management API with FastAPI backend",
-  "main": "api/vercel_handler.py",
+  "description": "",
+  "main": "script.js",
   "scripts": {
-    "dev": "echo 'Development mode - use FastAPI directly'",
-    "build": "echo 'Build completed successfully'",
-    "start": "python fastapi_backend/main.py"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "fastapi",
-    "python",
-    "vercel",
-    "financial",
-    "api"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
-  "dependencies": {},
-  "devDependencies": {}
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atfdark/family-financial-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/atfdark/family-financial-/issues"
+  },
+  "homepage": "https://github.com/atfdark/family-financial-#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.2",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
+    "multer": "^2.0.2",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
 }

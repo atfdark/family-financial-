@@ -1,8 +1,0 @@
-# Virtual Environment
-venv/
-env/
-.venv/
-
-# Vercel / deployment credentials (should never be committed)
-.vercel/
-.vercel/auth.json

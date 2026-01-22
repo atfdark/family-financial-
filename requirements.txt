@@ -1,4 +1,0 @@
-# Ultra-minimal requirements for Vercel
-# No external dependencies - using Python built-ins only
-
-# Keep this file but make it empty since we use only built-ins
