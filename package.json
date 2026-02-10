@@ -1,16 +1,22 @@
 {
   "name": "family-financial-",
   "version": "1.0.0",
-  "description": "",
-  "main": "script.js",
+  "description": "Family Financial Application with secure backend",
+  "main": "server.js",
   "scripts": {
+    "start": "node start.js",
+    "server": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/atfdark/family-financial-.git"
   },
-  "keywords": [],
+  "keywords": [
+    "financial",
+    "express",
+    "security"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -20,11 +26,16 @@
   "homepage": "https://github.com/atfdark/family-financial-#readme",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "body-parser": "^2.2.2",
+    "concurrently": "^9.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
     "express": "^5.2.1",
-    "express-session": "^1.18.2",
-    "multer": "^2.0.2",
-    "sqlite3": "^5.1.7"
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.0"

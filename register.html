@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Family Financial</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+            padding: 40px;
+        }
+
+        h2 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            outline: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        button.submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button.submit-btn:hover {
+            transform: scale(1.02);
+            background: #f0f0f0;
+        }
+
+        .toggle-text {
+            text-align: center;
+            margin-top: 20px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .toggle-text a {
+            color: #fff;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .error-message {
+            color: #ff6b6b;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Register</h2>
+        <form id="registerForm">
+            <div class="input-group">
+                <input type="text" name="username" placeholder="Username" aria-label="Username" required>
+            </div>
+            <div class="input-group">
+                <input type="password" name="password" id="password" placeholder="Password" aria-label="Password" required>
+            </div>
+            <div class="input-group">
+                <input type="password" name="confirmPassword" id="confirmPassword" placeholder="Confirm Password" aria-label="Confirm Password" required>
+            </div>
+            <button type="submit" class="submit-btn">Sign Up</button>
+            <p class="toggle-text">
+                Already have an account?
+                <a href="/login">Sign in</a>
+            </p>
+        </form>
+        <div id="error-display" class="error-message"></div>
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('registerForm');
+        const errorDisplay = document.getElementById('error-display');
+
+        if (registerForm) {
+            registerForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+            const username = document.querySelector('input[name="username"]').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (password.length < 8) {
+                errorDisplay.textContent = 'Password must be at least 8 characters';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            // Check for at least one uppercase letter
+            if (!/[A-Z]/.test(password)) {
+                errorDisplay.textContent = 'Password must contain at least one uppercase letter';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            // Check for at least one lowercase letter
+            if (!/[a-z]/.test(password)) {
+                errorDisplay.textContent = 'Password must contain at least one lowercase letter';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            // Check for at least one number
+            if (!/[0-9]/.test(password)) {
+                errorDisplay.textContent = 'Password must contain at least one number';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            // Check for at least one special character
+            if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+                errorDisplay.textContent = 'Password must contain at least one special character';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorDisplay.textContent = 'Passwords do not match';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+                // Clear any previous error
+                errorDisplay.style.display = 'none';
+
+                try {
+                    const response = await fetch('/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    if (response.ok) {
+                        // Successful registration, redirect
+                        window.location.href = '/login';
+                    } else {
+                        // Error
+                        const contentType = response.headers.get('content-type');
+                        let errorMessage = 'An unexpected error occurred';
+
+                        if (contentType && contentType.includes('application/json')) {
+                            const data = await response.json();
+                            errorMessage = data && data.error ? data.error : (response.statusText || 'An unexpected error occurred');
+                        } else {
+                            errorMessage = response.statusText || 'An unexpected error occurred';
+                        }
+
+                        errorDisplay.textContent = errorMessage;
+                        errorDisplay.style.display = 'block';
+                    }
+                } catch (error) {
+                    errorDisplay.textContent = 'Registration failed. Please try again.';
+                    errorDisplay.style.display = 'block';
+                }
+            });
+
+            // Clear error on input
+            const inputs = registerForm.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    errorDisplay.style.display = 'none';
+                });
+            });
+        }
+    </script>
+
+</body>
+</html>
