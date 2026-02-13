@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { api, Transaction } from '../services/api';
+import { api, Transaction, Reminder } from '../services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,18 +65,42 @@ ChartJS.register(
 
 const CATEGORIES = [
   'Food',
+  'Restaurant',
   'Transportation',
   'Housing',
   'Utilities',
   'Entertainment',
   'Healthcare',
+  'Atul Medicines',
   'Shopping',
   'Education',
   'Insurance',
+  'Enjoy Fuel',
+  'Manza Fuel',
+  'Activa Fuel',
+  'Milk',
+  'Groceries',
+  'Vegetables',
+  'Fruits',
+  'Alok Transportation',
+  'OTT',
   'Other',
 ];
 
-const PAYMENT_METHODS = Array.from({ length: 12 }, (_, i) => `Method ${i + 1}`);
+const PAYMENT_METHODS = [
+  'Cash',
+  'Alok UPI',
+  'Amol UPI',
+  'Atul UPI',
+  'Rashmi UPI',
+  'CC Rashmi Axis MyZone',
+  'CC Atul Axis MyZone',
+  'CC Atul Axis LIC',
+  'CC Atul SBI Elite',
+  'CC Rashmi SBI Elite',
+  'CC Amol SBI Elite',
+  'CC Amol SuperMoney'
+];
 
 const MONTHS = [
   'January',
@@ -151,6 +175,16 @@ export default function Dashboard() {
     amount: '',
     description: '',
   });
+
+  // Reminders state
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [reminderForm, setReminderForm] = useState({
+    description: '',
+    amount: '',
+    due_date: '',
+    frequency: 'once' as 'once' | 'monthly' | 'yearly',
+  });
   const [editForm, setEditForm] = useState<{
     amount: string;
     description: string;
@@ -165,6 +199,36 @@ export default function Dashboard() {
     payment_method: '',
   });
 
+  // Export state
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('pdf');
+  const [exportType, setExportType] = useState<'month' | 'financial_year'>('month');
+  const [exportMonth, setExportMonth] = useState(new Date().getMonth() + 1);
+  const [exportYear, setExportYear] = useState(new Date().getFullYear());
+
+  const handleExport = async () => {
+    try {
+      await api.exportTransactions({
+        format: exportFormat,
+        type: exportType,
+        year: exportYear,
+        month: exportType === 'month' ? exportMonth : undefined,
+      });
+      setExportDialogOpen(false);
+    } catch (err) {
+      setError('Failed to export transactions');
+    }
+  };
+
+  const fetchReminders = useCallback(async () => {
+    try {
+      const data = await api.getReminders();
+      setReminders(data);
+    } catch (err) {
+      console.error('Failed to fetch reminders:', err);
+    }
+  }, []);
+
   const fetchTransactions = useCallback(async () => {
     try {
       const data = await api.getTransactions();
@@ -178,22 +242,26 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+    fetchReminders();
+  }, [fetchTransactions, fetchReminders]);
 
-  const filteredTransactions = transactions
+  const periodTransactions = transactions.filter((t) => {
+    const date = new Date(t.date);
+    return viewMode === 'daily'
+      ? date.getDate() === selectedDay &&
+      date.getMonth() + 1 === selectedMonth &&
+      date.getFullYear() === selectedYear
+      : date.getMonth() + 1 === selectedMonth &&
+      date.getFullYear() === selectedYear;
+  });
+
+  const filteredTransactions = periodTransactions
     .filter((t) => {
-      const date = new Date(t.date);
-      const matchesDate = viewMode === 'daily'
-        ? date.getDate() === selectedDay &&
-        date.getMonth() + 1 === selectedMonth &&
-        date.getFullYear() === selectedYear
-        : date.getMonth() + 1 === selectedMonth &&
-        date.getFullYear() === selectedYear;
       const matchesSearch = t.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = filterCategory === 'all' || t.category === filterCategory;
       const matchesPaymentMethod = filterPaymentMethod === 'all' || t.payment_method === filterPaymentMethod;
 
-      return matchesDate && matchesSearch && matchesCategory && matchesPaymentMethod;
+      return matchesSearch && matchesCategory && matchesPaymentMethod;
     })
     .sort((a, b) => {
       switch (sortOrder) {
@@ -208,6 +276,14 @@ export default function Dashboard() {
           return new Date(b.date).getTime() - new Date(a.date).getTime();
       }
     });
+
+  const periodTotalIncome = periodTransactions
+    .filter((t) => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const periodTotalExpenses = periodTransactions
+    .filter((t) => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const totalIncome = filteredTransactions
     .filter((t) => t.type === 'income')
@@ -227,11 +303,41 @@ export default function Dashboard() {
       return acc;
     }, {} as Record<string, number>);
 
+  // Plugin to show text in center of doughnut
+  const textCenter = {
+    id: 'textCenter',
+    beforeDatasetsDraw(chart: any) {
+      const { ctx } = chart;
+      ctx.save();
+      const xCoor = chart.getDatasetMeta(0).data[0].x;
+      const yCoor = chart.getDatasetMeta(0).data[0].y;
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Get text from options or fallback
+      const text = chart.config.options.plugins.textCenter?.text || `₹${totalExpenses.toFixed(2)}`;
+
+      // Draw "Total" label
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#666';
+      ctx.fillText('Total Spend', xCoor, yCoor - 15);
+
+      // Draw Amount
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillStyle = '#333';
+      ctx.fillText(text, xCoor, yCoor + 10);
+
+      ctx.restore();
+    }
+  };
+
   const chartData = {
     labels: Object.keys(expensesByCategory),
     datasets: [
       {
         data: Object.values(expensesByCategory),
+        cutout: '70%',
         backgroundColor: [
           '#008080',
           '#FF8C00',
@@ -269,15 +375,22 @@ export default function Dashboard() {
   const carryForwardBalance = transactions
     .filter((t) => {
       const tDate = new Date(t.date);
-      // Filter transactions before the selected month/year
-      const currentMonthStart = new Date(selectedYear, selectedMonth - 1, 1);
-      return tDate < currentMonthStart;
+      // Filter transactions before the selected date based on view mode
+      let cutoffDate: Date;
+
+      if (viewMode === 'daily') {
+        cutoffDate = new Date(selectedYear, selectedMonth - 1, selectedDay);
+      } else {
+        cutoffDate = new Date(selectedYear, selectedMonth - 1, 1);
+      }
+
+      return tDate < cutoffDate;
     })
     .reduce((acc, t) => {
       return acc + (t.type === 'income' ? t.amount : -t.amount);
     }, 0);
 
-  const balance = carryForwardBalance + totalIncome - totalExpenses;
+  const balance = carryForwardBalance + periodTotalIncome - periodTotalExpenses;
 
   // FY transactions and metrics
   const { endDate: fyEndDate } = getFYDateRange(selectedMonth, selectedYear);
@@ -481,17 +594,7 @@ export default function Dashboard() {
     return new Date(year, month - 1, 1).getDay();
   };
 
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
-    setQuickAddForm({
-      type: 'expense',
-      amount: '',
-      description: '',
-      category: '',
-      payment_method: '',
-    });
-    setQuickAddDialogOpen(true);
-  };
+
 
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -521,6 +624,76 @@ export default function Dashboard() {
     }
   };
 
+  const handleAddReminder = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const amount = parseFloat(reminderForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      setError('Amount must be a positive number');
+      return;
+    }
+
+    if (!reminderForm.description.trim()) {
+      setError('Description is required');
+      return;
+    }
+
+    if (!reminderForm.due_date) {
+      setError('Due date is required');
+      return;
+    }
+
+    try {
+      await api.addReminder({
+        description: reminderForm.description.trim(),
+        amount,
+        due_date: reminderForm.due_date,
+        frequency: reminderForm.frequency,
+      });
+      setReminderForm({ description: '', amount: '', due_date: '', frequency: 'once' });
+      setReminderDialogOpen(false);
+      setError('');
+      fetchReminders();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add reminder');
+    }
+  };
+
+  const handleMarkReminderPaid = async (reminder: Reminder) => {
+    if (!reminder.id) return;
+    try {
+      // Create a transaction for the paid bill
+      await api.createTransaction({
+        type: 'expense',
+        amount: reminder.amount,
+        description: `Bill Payment: ${reminder.description}`,
+        category: 'Utilities', // Default category, could be improved
+        payment_method: null,
+        date: new Date().toISOString().split('T')[0],
+      });
+
+      // Update reminder status
+      // Backend now handles the recurrence logic (updating due date for monthly/yearly)
+      await api.updateReminder(reminder.id, { is_paid: true });
+
+      fetchReminders();
+      fetchTransactions();
+      fetchReminders();
+      fetchTransactions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to mark reminder as paid');
+    }
+  };
+
+  const handleDeleteReminder = async (id: number) => {
+    try {
+      await api.deleteReminder(id);
+      fetchReminders();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete reminder');
+    }
+  };
+
   const years = Array.from(
     { length: new Date().getFullYear() - 2020 + 2 },
     (_, i) => new Date().getFullYear() - 1 + i
@@ -535,24 +708,29 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-purple-500 to-orange-500">
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-indigo-500 to-cyan-500">
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm shadow-md p-4">
-        <div className="container mx-auto flex justify-between items-center">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <h1 className="text-2xl font-bold text-foreground">
             Welcome, {username || 'User'}
           </h1>
-          <div className="flex gap-2">
-            <Button onClick={() => setCalendarDialogOpen(true)} variant="outline">
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setExportDialogOpen(true)} variant="outline" size="sm" className="flex-1 md:flex-none">
+              📥 Export
+            </Button>
+            <Button onClick={() => setCalendarDialogOpen(true)} variant="outline" size="sm" className="flex-1 md:flex-none">
               📅 Calendar
             </Button>
             <Button
               onClick={() => setViewMode(viewMode === 'daily' ? 'monthly' : 'daily')}
               variant="outline"
+              size="sm"
+              className="flex-1 md:flex-none"
             >
               {viewMode === 'daily' ? '📊 Monthly' : '📅 Daily'}
             </Button>
-            <Button variant="destructive" onClick={handleLogout}>
+            <Button variant="destructive" onClick={handleLogout} size="sm" className="flex-1 md:flex-none">
               Logout
             </Button>
           </div>
@@ -581,7 +759,7 @@ export default function Dashboard() {
                       value={selectedMonth.toString()}
                       onValueChange={(v) => setSelectedMonth(parseInt(v))}
                     >
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-full md:w-[180px]">
                         <SelectValue placeholder="Select month" />
                       </SelectTrigger>
                       <SelectContent>
@@ -599,7 +777,7 @@ export default function Dashboard() {
                       value={selectedYear.toString()}
                       onValueChange={(v) => setSelectedYear(parseInt(v))}
                     >
-                      <SelectTrigger className="w-[120px]">
+                      <SelectTrigger className="w-full md:w-[120px]">
                         <SelectValue placeholder="Select year" />
                       </SelectTrigger>
                       <SelectContent>
@@ -653,16 +831,16 @@ export default function Dashboard() {
         </Card>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-purple-100 to-purple-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-cyan-100 to-blue-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-4xl">💰</span>
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                <span className="text-3xl md:text-4xl">💰</span>
                 Opening Balance
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className={`text-4xl font-bold ${carryForwardBalance >= 0 ? 'text-purple-700' : 'text-red-700'}`}>
+              <p className={`text-2xl md:text-3xl lg:text-4xl font-bold ${carryForwardBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                 ₹{carryForwardBalance.toFixed(2)}
               </p>
             </CardContent>
@@ -670,28 +848,33 @@ export default function Dashboard() {
 
           <Card className="bg-gradient-to-br from-green-100 to-green-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-4xl">↑</span>
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                <span className="text-3xl md:text-4xl">↑</span>
                 Total Income
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-bold text-green-700">
-                ₹{totalIncome.toFixed(2)}
-              </p>
+              <div className="flex flex-col">
+                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-green-700">
+                  ₹{periodTotalIncome.toFixed(2)}
+                </p>
+                <p className="text-sm text-green-600/80 mt-2 font-medium">
+                  FY Total: ₹{fyTotalIncome.toFixed(2)}
+                </p>
+              </div>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-red-100 to-red-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-4xl">↓</span>
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                <span className="text-3xl md:text-4xl">↓</span>
                 Total Expenses
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col">
-                <p className="text-4xl font-bold text-red-700">
-                  ₹{totalExpenses.toFixed(2)}
+                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-red-700">
+                  ₹{periodTotalExpenses.toFixed(2)}
                 </p>
                 <p className="text-sm text-red-600/80 mt-2 font-medium">
                   FY Total: ₹{totalFYExpenses.toFixed(2)}
@@ -699,16 +882,16 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-to-br from-blue-100 to-blue-200">
+          <Card className="bg-gradient-to-br from-blue-100 to-indigo-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-4xl">=</span>
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                <span className="text-3xl md:text-4xl">=</span>
                 Closing Balance
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p
-                className={`text-4xl font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'
+                className={`text-2xl md:text-3xl lg:text-4xl font-bold ${balance >= 0 ? 'text-indigo-700' : 'text-red-700'
                   }`}
               >
                 ₹{balance.toFixed(2)}
@@ -718,155 +901,157 @@ export default function Dashboard() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4">
-          <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-orange-500 hover:bg-orange-600">
-                Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Expense</DialogTitle>
-                <DialogDescription>
-                  Enter the details of your expense below.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddExpense}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="expense-amount">Amount</Label>
-                    <Input
-                      id="expense-amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      placeholder="Enter amount"
-                      value={expenseForm.amount}
-                      onChange={(e) =>
-                        setExpenseForm({ ...expenseForm, amount: e.target.value })
-                      }
-                      required
-                    />
+        {viewMode === 'daily' && (
+          <div className="flex flex-wrap gap-4">
+            <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-red-500 hover:bg-red-600">
+                  Add Expense
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Expense</DialogTitle>
+                  <DialogDescription>
+                    Enter the details of your expense below.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddExpense}>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-amount">Amount</Label>
+                      <Input
+                        id="expense-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="Enter amount"
+                        value={expenseForm.amount}
+                        onChange={(e) =>
+                          setExpenseForm({ ...expenseForm, amount: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-category">Category</Label>
+                      <Select
+                        value={expenseForm.category}
+                        onValueChange={(v) =>
+                          setExpenseForm({ ...expenseForm, category: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-payment-method">Payment Method</Label>
+                      <Select
+                        value={expenseForm.payment_method}
+                        onValueChange={(v) =>
+                          setExpenseForm({ ...expenseForm, payment_method: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((method) => (
+                            <SelectItem key={method} value={method}>
+                              {method}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="expense-description">Description</Label>
+                      <textarea
+                        id="expense-description"
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Enter description"
+                        value={expenseForm.description}
+                        onChange={(e) =>
+                          setExpenseForm({
+                            ...expenseForm,
+                            description: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expense-category">Category</Label>
-                    <Select
-                      value={expenseForm.category}
-                      onValueChange={(v) =>
-                        setExpenseForm({ ...expenseForm, category: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIES.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expense-payment-method">Payment Method</Label>
-                    <Select
-                      value={expenseForm.payment_method}
-                      onValueChange={(v) =>
-                        setExpenseForm({ ...expenseForm, payment_method: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select payment method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_METHODS.map((method) => (
-                          <SelectItem key={method} value={method}>
-                            {method}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expense-description">Description</Label>
-                    <textarea
-                      id="expense-description"
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      placeholder="Enter description"
-                      value={expenseForm.description}
-                      onChange={(e) =>
-                        setExpenseForm({
-                          ...expenseForm,
-                          description: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-                <DialogFooter className="mt-4">
-                  <Button type="submit">Add Expense</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter className="mt-4">
+                    <Button type="submit">Add Expense</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
 
-          <Dialog open={incomeDialogOpen} onOpenChange={setIncomeDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-teal-500 hover:bg-teal-600">
-                Add Income
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Income</DialogTitle>
-                <DialogDescription>
-                  Enter the details of your income below.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddIncome}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="income-amount">Amount</Label>
-                    <Input
-                      id="income-amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      placeholder="Enter amount"
-                      value={incomeForm.amount}
-                      onChange={(e) =>
-                        setIncomeForm({ ...incomeForm, amount: e.target.value })
-                      }
-                      required
-                    />
+            <Dialog open={incomeDialogOpen} onOpenChange={setIncomeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-emerald-500 hover:bg-emerald-600">
+                  Add Income
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Income</DialogTitle>
+                  <DialogDescription>
+                    Enter the details of your income below.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddIncome}>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="income-amount">Amount</Label>
+                      <Input
+                        id="income-amount"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="Enter amount"
+                        value={incomeForm.amount}
+                        onChange={(e) =>
+                          setIncomeForm({ ...incomeForm, amount: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="income-description">Description</Label>
+                      <Input
+                        id="income-description"
+                        type="text"
+                        placeholder="Enter description"
+                        value={incomeForm.description}
+                        onChange={(e) =>
+                          setIncomeForm({
+                            ...incomeForm,
+                            description: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="income-description">Description</Label>
-                    <Input
-                      id="income-description"
-                      type="text"
-                      placeholder="Enter description"
-                      value={incomeForm.description}
-                      onChange={(e) =>
-                        setIncomeForm({
-                          ...incomeForm,
-                          description: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-                <DialogFooter className="mt-4">
-                  <Button type="submit">Add Income</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                  <DialogFooter className="mt-4">
+                    <Button type="submit">Add Income</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -875,15 +1060,15 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle>Expense Categories</CardTitle>
               <CardDescription>
-                Breakdown of expenses by category for{' '}
-                {MONTHS[selectedMonth - 1]} {selectedYear}
+                Breakdown of expenses by category for {viewMode === 'daily' ? `${selectedDay} ` : ''}{MONTHS[selectedMonth - 1]} {selectedYear}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {Object.keys(expensesByCategory).length > 0 ? (
-                <div className="h-[300px] flex items-center justify-center">
+                <div className="h-[300px] md:h-[400px] flex items-center justify-center">
                   <Doughnut
                     data={chartData}
+                    plugins={[textCenter]}
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
@@ -891,24 +1076,31 @@ export default function Dashboard() {
                         legend: {
                           position: 'right',
                         },
+                        // Pass dynamic data to the plugin via options
+                        // @ts-ignore - Custom plugin option
+                        textCenter: {
+                          text: `₹${totalExpenses.toFixed(2)}`
+                        }
                       },
                     }}
                   />
                 </div>
               ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[400px] flex items-center justify-center text-muted-foreground">
                   No expenses for this period
                 </div>
               )}
             </CardContent>
           </Card>
 
+
+
           {/* Transaction History */}
           <Card>
             <CardHeader>
               <CardTitle>Transaction History</CardTitle>
               <CardDescription>
-                Recent transactions for {MONTHS[selectedMonth - 1]} {selectedYear}
+                Recent transactions for {viewMode === 'daily' ? `${selectedDay} ` : ''}{MONTHS[selectedMonth - 1]} {selectedYear}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -968,10 +1160,30 @@ export default function Dashboard() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSortOrder('newest');
+                      setFilterCategory('all');
+                      setFilterPaymentMethod('all');
+                    }}
+                    disabled={
+                      searchQuery === '' &&
+                      sortOrder === 'newest' &&
+                      filterCategory === 'all' &&
+                      filterPaymentMethod === 'all'
+                    }
+                    className="w-full"
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
               </div>
 
-              <div className="max-h-[400px] overflow-y-auto">
-                <Table>
+              <div className="max-h-[400px] overflow-y-auto overflow-x-auto">
+                <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
@@ -1001,11 +1213,11 @@ export default function Dashboard() {
                                 {transaction.category || 'N/A'}
                               </Badge>
                             ) : (
-                              <Badge variant="default">Income</Badge>
+                              <Badge className="bg-green-500 hover:bg-green-600">Income</Badge>
                             )}
                           </TableCell>
                           <TableCell
-                            className={`text-right font-medium ${transaction.type === 'income'
+                            className={`text-right font-medium whitespace-nowrap ${transaction.type === 'income'
                               ? 'text-green-600'
                               : 'text-red-600'
                               }`}
@@ -1040,11 +1252,242 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+
+
+
+          {/* Top 5 Expenses */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-red-50 to-transparent">
+              <CardTitle className="text-red-950 flex items-center gap-2">
+                <span className="text-2xl">📉</span> Top 5 Expenses
+              </CardTitle>
+              <CardDescription>
+                Highest spending in {viewMode === 'daily' ? `${selectedDay} ` : ''}{MONTHS[selectedMonth - 1]} {selectedYear}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {filteredTransactions
+                .filter((t) => t.type === 'expense')
+                .length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {(() => {
+                    const expenses = filteredTransactions
+                      .filter((t) => t.type === 'expense')
+                      .sort((a, b) => b.amount - a.amount)
+                      .slice(0, 5);
+                    const maxExpense = expenses[0]?.amount || 1;
+
+                    return expenses.map((transaction, index) => (
+                      <div key={index} className="p-4 hover:bg-gray-50 transition-colors relative group">
+                        {/* Progress Bar Background */}
+                        <div
+                          className="absolute bottom-0 left-0 h-1 bg-red-500/20 transition-all duration-500"
+                          style={{ width: `${(transaction.amount / maxExpense) * 100}%` }}
+                        />
+
+                        <div className="flex items-center justify-between relative z-10">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 font-bold text-lg">
+                              {index + 1}
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="font-semibold text-gray-900">{transaction.description}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-xs py-0 h-5 font-normal border-red-200 text-red-700 bg-red-50">
+                                  {transaction.category}
+                                </Badge>
+                                <span>•</span>
+                                <span>{new Date(transaction.date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="font-bold text-red-600 whitespace-nowrap">
+                              -₹{transaction.amount.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-medium">
+                              {/* Calculate percentage of total expenses if available, else relative to max */}
+                              {totalExpenses > 0 ? (
+                                <span>{((transaction.amount / totalExpenses) * 100).toFixed(1)}% of total</span>
+                              ) : (
+                                <span>{((transaction.amount / maxExpense) * 100).toFixed(0)}% vs top</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                    <span className="text-2xl">📝</span>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900">No Expenses Yet</h3>
+                  <p className="text-sm text-gray-500 max-w-[250px] mt-1">
+                    Start adding expenses to see your top spending habits here.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Bill Reminders */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Bill Reminders</CardTitle>
+                <CardDescription>
+                  Upcoming bills and payments
+                </CardDescription>
+              </div>
+              <Button onClick={() => setReminderDialogOpen(true)} variant="outline" size="sm">
+                + Add Reminder
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-[300px] overflow-y-auto overflow-x-auto">
+                <Table className="min-w-[600px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reminders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          No active reminders
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      reminders.map((reminder) => (
+                        <TableRow key={reminder.id} className={reminder.is_paid ? 'opacity-50' : ''}>
+                          <TableCell className="font-medium">{reminder.description}</TableCell>
+                          <TableCell>
+                            {reminder.frequency === 'monthly' && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Monthly</Badge>}
+                            {reminder.frequency === 'yearly' && <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Yearly</Badge>}
+                            {(!reminder.frequency || reminder.frequency === 'once') && <Badge variant="outline" className="text-gray-500">Once</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(reminder.due_date).toLocaleDateString()}
+                            {new Date(reminder.due_date) < new Date() && !reminder.is_paid && (
+                              <Badge variant="destructive" className="ml-2 text-xs">Overdue</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">₹{reminder.amount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {!reminder.is_paid && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleMarkReminderPaid(reminder)}
+                                  className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                >
+                                  Mark Paid
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => reminder.id && handleDeleteReminder(reminder.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                              >
+                                🗑️
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        <Dialog open={reminderDialogOpen} onOpenChange={setReminderDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add Bill Reminder</DialogTitle>
+              <DialogDescription>
+                Set a reminder for upcoming bills.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddReminder}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reminder-description">Description</Label>
+                  <Input
+                    id="reminder-description"
+                    placeholder="e.g. Electricity Bill"
+                    value={reminderForm.description}
+                    onChange={(e) => setReminderForm({ ...reminderForm, description: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reminder-amount">Amount</Label>
+                    <Input
+                      id="reminder-amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={reminderForm.amount}
+                      onChange={(e) => setReminderForm({ ...reminderForm, amount: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reminder-date">Due Date</Label>
+                    <Input
+                      id="reminder-date"
+                      type="date"
+                      value={reminderForm.due_date}
+                      onChange={(e) => setReminderForm({ ...reminderForm, due_date: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reminder-frequency">Frequency</Label>
+                  <Select
+                    value={reminderForm.frequency}
+                    onValueChange={(v: 'once' | 'monthly' | 'yearly') =>
+                      setReminderForm({ ...reminderForm, frequency: v })
+                    }
+                  >
+                    <SelectTrigger id="reminder-frequency">
+                      <SelectValue placeholder="Select frequency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="once">Once</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button type="submit">Add Reminder</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Edit Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Edit Transaction</DialogTitle>
               <DialogDescription>
@@ -1148,9 +1591,11 @@ export default function Dashboard() {
           </DialogContent>
         </Dialog>
 
+
+
         {/* FY Summary Dialog */}
         <Dialog open={fyDialogOpen} onOpenChange={setFyDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw]">
             <DialogHeader>
               <DialogTitle>Financial Year Summary: FY {fyStartYear}-{fyStartYear + 1}</DialogTitle>
               <DialogDescription>
@@ -1241,11 +1686,11 @@ export default function Dashboard() {
 
         {/* Calendar Dialog */}
         <Dialog open={calendarDialogOpen} onOpenChange={setCalendarDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw]">
             <DialogHeader>
               <DialogTitle>Calendar View</DialogTitle>
               <DialogDescription>
-                Click any date to add a transaction
+                Click any date to view transactions for that day
               </DialogDescription>
             </DialogHeader>
 
@@ -1305,30 +1750,48 @@ export default function Dashboard() {
                   // Actual days
                   for (let day = 1; day <= daysInMonth; day++) {
                     const currentDate = new Date(calendarYear, calendarMonth - 1, day);
-                    const dateStr = currentDate.toISOString().split('T')[0];
+                    // Use local date string construction to avoid UTC timezone shifts
+                    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+
                     const dayTransactions = transactions.filter(t => t.date.startsWith(dateStr));
-                    const hasTransactions = dayTransactions.length > 0;
+                    const dayExpenses = dayTransactions
+                      .filter(t => t.type === 'expense')
+                      .reduce((sum, t) => sum + t.amount, 0);
+                    const dayIncome = dayTransactions
+                      .filter(t => t.type === 'income')
+                      .reduce((sum, t) => sum + t.amount, 0);
+
+                    let bgClass = 'hover:bg-primary/10';
+                    if (dayIncome > dayExpenses) {
+                      bgClass = 'bg-green-100 hover:bg-green-200 border-green-200';
+                    } else if (dayExpenses > 5000) {
+                      bgClass = 'bg-red-100 hover:bg-red-200 border-red-200';
+                    }
 
                     cells.push(
                       <div
                         key={day}
-                        onClick={() => handleDateClick(currentDate)}
-                        className="h-20 border rounded p-2 cursor-pointer hover:bg-primary/10 transition-colors relative"
+                        onClick={() => {
+                          setSelectedDay(day);
+                          setSelectedMonth(calendarMonth);
+                          setSelectedYear(calendarYear);
+                          setViewMode('daily');
+                          setCalendarDialogOpen(false);
+                        }}
+                        className={`h-24 border rounded p-2 cursor-pointer transition-colors relative flex flex-col justify-between ${bgClass}`}
                       >
                         <div className="font-semibold text-sm">{day}</div>
-                        {hasTransactions && (
-                          <div className="mt-1 space-y-1">
-                            {dayTransactions.slice(0, 2).map((t, idx) => (
-                              <div
-                                key={idx}
-                                className={`text-xs px-1 rounded truncate ${t.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                  }`}
-                              >
-                                ₹{t.amount.toFixed(0)}
+                        {(dayExpenses > 0 || dayIncome > 0) && (
+                          <div className="space-y-1 text-xs font-medium">
+                            {dayExpenses > 0 && (
+                              <div className="text-red-700">
+                                -₹{dayExpenses.toFixed(0)}
                               </div>
-                            ))}
-                            {dayTransactions.length > 2 && (
-                              <div className="text-xs text-muted-foreground">+{dayTransactions.length - 2} more</div>
+                            )}
+                            {dayIncome > 0 && (
+                              <div className="text-green-700">
+                                +₹{dayIncome.toFixed(0)}
+                              </div>
                             )}
                           </div>
                         )}
@@ -1345,7 +1808,7 @@ export default function Dashboard() {
 
         {/* Quick Add Dialog */}
         <Dialog open={quickAddDialogOpen} onOpenChange={setQuickAddDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Add Transaction</DialogTitle>
               <DialogDescription>
@@ -1448,7 +1911,7 @@ export default function Dashboard() {
 
         {/* Confirmation Dialog */}
         <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{confirmDialogConfig?.title || 'Confirm'}</DialogTitle>
               <DialogDescription>
@@ -1474,7 +1937,122 @@ export default function Dashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </main>
+
+
+
+        {/* Export Dialog */}
+        <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Export Transactions</DialogTitle>
+              <DialogDescription>
+                Download your transaction history as PDF or CSV.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Format</Label>
+                <Select
+                  value={exportFormat}
+                  onValueChange={(v: 'csv' | 'pdf') => setExportFormat(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf">PDF (Printable Report)</SelectItem>
+                    <SelectItem value="csv">CSV (Excel Compatible)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Time Period</Label>
+                <Select
+                  value={exportType}
+                  onValueChange={(v: 'month' | 'financial_year') => setExportType(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Specific Month</SelectItem>
+                    <SelectItem value="financial_year">Financial Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {exportType === 'month' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Month</Label>
+                    <Select
+                      value={exportMonth.toString()}
+                      onValueChange={(v) => setExportMonth(parseInt(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m, i) => (
+                          <SelectItem key={i + 1} value={(i + 1).toString()}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Select
+                      value={exportYear.toString()}
+                      onValueChange={(v) => setExportYear(parseInt(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {years.map((y) => (
+                          <SelectItem key={y} value={y.toString()}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Financial Year</Label>
+                  <Select
+                    value={exportYear.toString()}
+                    onValueChange={(v) => setExportYear(parseInt(v))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((y) => (
+                        <SelectItem key={y} value={y.toString()}>
+                          FY {y}-{y + 1}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setExportDialogOpen(false)} variant="outline">
+                Cancel
+              </Button>
+              <Button onClick={handleExport}>
+                Download {exportFormat.toUpperCase()}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </main >
     </div >
   );
 }

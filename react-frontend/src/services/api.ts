@@ -1,4 +1,9 @@
-const API_BASE_URL = 'http://localhost:8000';
+// Determines the API base URL.
+// 1. If REACT_APP_API_URL is set (e.g. in Vercel env vars), use it.
+// 2. If running locally (Node env development), default to using the current hostname on port 8000 (for local network testing).
+// 3. Otherwise (Production on Vercel), use empty string for relative paths (via vercel rewrites).
+const API_BASE_URL = process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'development' ? `http://${window.location.hostname}:8000` : '');
 
 // Configuration for retry logic and timeout
 const API_CONFIG = {
@@ -155,6 +160,17 @@ export interface Transaction {
   date: string;
 }
 
+export interface Reminder {
+  id?: number;
+  user_id?: number;
+  description: string;
+  amount: number;
+  due_date: string;
+  is_paid: boolean;
+  frequency: 'once' | 'monthly' | 'yearly';
+  created_at?: string;
+}
+
 export interface User {
   id?: number;
   username: string;
@@ -210,4 +226,60 @@ export const api = {
     apiCall<{ message: string }>(`/api/transactions/${id}`, {
       method: 'DELETE',
     }),
+
+  // Reminder endpoints
+  getReminders: () =>
+    apiCall<Reminder[]>('/api/reminders'),
+
+  addReminder: (reminder: Omit<Reminder, 'id' | 'user_id' | 'is_paid'>) =>
+    apiCall<{ message: string; id: number }>('/api/reminders', {
+      method: 'POST',
+      body: reminder,
+    }),
+
+  updateReminder: (id: number, updates: Partial<Reminder>) =>
+    apiCall<{ message: string }>(`/api/reminders/${id}`, {
+      method: 'PUT',
+      body: updates,
+    }),
+
+  deleteReminder: (id: number) =>
+    apiCall<{ message: string }>(`/api/reminders/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Export
+  exportTransactions: async (params: {
+    format: 'csv' | 'pdf';
+    month?: number;
+    year: number;
+    type?: 'financial_year' | 'month';
+  }) => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('format', params.format);
+    queryParams.append('year', params.year.toString());
+    if (params.month) queryParams.append('month', params.month.toString());
+    if (params.type) queryParams.append('type', params.type);
+
+    const response = await fetch(`${API_BASE_URL}/api/export/transactions?${queryParams.toString()}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${params.type === 'financial_year' ? 'FY' : params.month}-${params.year}.${params.format}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
 };

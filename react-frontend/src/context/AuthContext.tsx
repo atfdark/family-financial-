@@ -34,10 +34,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await api.getUser();
         setUsername(userData.username);
         setIsAuthenticated(true);
-      } catch {
-        // User exists in localStorage but API fails - still authenticated
-        setUsername(user.username || null);
-        setIsAuthenticated(true);
+      } catch (error: any) {
+        console.error('Auth verification failed:', error);
+        if (error.status === 401 || (error.message && error.message.toLowerCase().includes('unauthorized'))) {
+          // Token is invalid/expired
+          localStorage.removeItem('user');
+          setIsAuthenticated(false);
+          setUsername(null);
+        } else {
+          // Network error or other issue - optimistically keep user logged in if they were already
+          // This allows for offline usage or flaky connections
+          setUsername(user.username || null);
+          setIsAuthenticated(true);
+        }
       }
     } else {
       setIsAuthenticated(false);
@@ -53,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     try {
       const response = await api.login(username, password);
-      
+
       // Store user info in localStorage
       if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user));
