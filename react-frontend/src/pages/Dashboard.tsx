@@ -206,6 +206,11 @@ export default function Dashboard() {
   const [exportMonth, setExportMonth] = useState(new Date().getMonth() + 1);
   const [exportYear, setExportYear] = useState(new Date().getFullYear());
 
+  // Mark Paid Dialog State
+  const [markPaidDialogOpen, setMarkPaidDialogOpen] = useState(false);
+  const [reminderToPay, setReminderToPay] = useState<Reminder | null>(null);
+  const [paymentMethodForReminder, setPaymentMethodForReminder] = useState('');
+
   const handleExport = async () => {
     try {
       await api.exportTransactions({
@@ -657,25 +662,39 @@ export default function Dashboard() {
     }
   };
 
-  const handleMarkReminderPaid = async (reminder: Reminder) => {
-    if (!reminder.id) return;
+  const handleMarkReminderPaid = (reminder: Reminder) => {
+    setReminderToPay(reminder);
+    setPaymentMethodForReminder(''); // Reset selection
+    setMarkPaidDialogOpen(true);
+  };
+
+  const confirmMarkPaid = async () => {
+    if (!reminderToPay || !reminderToPay.id) return;
+
+    if (!paymentMethodForReminder) {
+      setError('Please select a payment method');
+      return;
+    }
+
     try {
       // Create a transaction for the paid bill
       await api.createTransaction({
         type: 'expense',
-        amount: reminder.amount,
-        description: `Bill Payment: ${reminder.description}`,
-        category: 'Utilities', // Default category, could be improved
-        payment_method: null,
+        amount: reminderToPay.amount,
+        description: `Bill Payment: ${reminderToPay.description}`,
+        category: 'Utilities', // Default category
+        payment_method: paymentMethodForReminder,
         date: new Date().toISOString().split('T')[0],
       });
 
       // Update reminder status
-      // Backend now handles the recurrence logic (updating due date for monthly/yearly)
-      await api.updateReminder(reminder.id, { is_paid: true });
+      await api.updateReminder(reminderToPay.id, { is_paid: true });
 
-      fetchReminders();
-      fetchTransactions();
+      setMarkPaidDialogOpen(false);
+      setReminderToPay(null);
+      setPaymentMethodForReminder('');
+      setError('');
+
       fetchReminders();
       fetchTransactions();
     } catch (err) {
@@ -2049,7 +2068,45 @@ export default function Dashboard() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          {/* Mark Paid Dialog */}
+          <Dialog open={markPaidDialogOpen} onOpenChange={setMarkPaidDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Mark Bill as Paid</DialogTitle>
+                <DialogDescription>
+                  Select payment method for {reminderToPay?.description} (₹{reminderToPay?.amount})
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  <Select
+                    value={paymentMethodForReminder}
+                    onValueChange={setPaymentMethodForReminder}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHODS.map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {method}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setMarkPaidDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={confirmMarkPaid}>
+                  Confirm Payment
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
       </main >
     </div >
   );
