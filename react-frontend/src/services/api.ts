@@ -116,8 +116,9 @@ async function apiCall<T = unknown>(endpoint: string, options: ApiOptions = {}):
           response.statusText,
           response.status >= 500 // Retry on 5xx errors
         );
-      } catch {
-        throw new ApiError(errorText || 'Request failed', response.status, response.statusText, response.status >= 500);
+      } catch (e) {
+        console.error('API Error Parsing Failed:', { status: response.status, statusText: response.statusText, text: errorText });
+        throw new ApiError(errorText || `Request failed (${response.status})`, response.status, response.statusText, response.status >= 500);
       }
     }
 
@@ -171,14 +172,14 @@ export interface User {
 export const api = {
   // Auth endpoints
   login: (username: string, password: string) =>
-    apiCall<{ message: string; user?: User }>('/login', {
+    apiCall<{ message: string; user?: User }>('/api/login', {
       method: 'POST',
       body: { username, password },
       requireAuth: false,
     }),
 
   register: (username: string, password: string) =>
-    apiCall<{ message: string }>('/register', {
+    apiCall<{ message: string }>('/api/register', {
       method: 'POST',
       body: { username, password },
       requireAuth: false,

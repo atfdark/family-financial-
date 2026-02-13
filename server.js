@@ -136,9 +136,7 @@ app.use(sanitizeInput);
 // Apply API rate limiting
 app.use('/api', apiLimiter);
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
-});
+
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
@@ -170,11 +168,9 @@ const requireAuth = (req, res, next) => {
   return res.status(401).json({ error: 'Unauthorized - No valid authentication provided' });
 };
 
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'register.html'));
-});
 
-app.post('/register', registerLimiter, [
+
+app.post('/api/register', registerLimiter, [
   body('username')
     .trim()
     .isLength({ min: 3, max: 30 }).withMessage('Username must be 3-30 characters')
@@ -233,11 +229,9 @@ app.post('/register', registerLimiter, [
   }
 });
 
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
-});
 
-app.post('/login', loginLimiter, [
+
+app.post('/api/login', loginLimiter, [
   body('username').trim().notEmpty().withMessage('Username is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
@@ -290,9 +284,7 @@ app.post('/login', loginLimiter, [
   }
 });
 
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
+
 
 app.post('/api/logout', requireAuth, (req, res) => {
   res.cookie('jwt', '', {
