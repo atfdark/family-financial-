@@ -2068,45 +2068,47 @@ export default function Dashboard() {
               </Button>
             </DialogFooter>
           </DialogContent>
-          {/* Mark Paid Dialog */}
-          <Dialog open={markPaidDialogOpen} onOpenChange={setMarkPaidDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Mark Bill as Paid</DialogTitle>
-                <DialogDescription>
-                  Select payment method for {reminderToPay?.description} (₹{reminderToPay?.amount})
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Payment Method</Label>
-                  <Select
-                    value={paymentMethodForReminder}
-                    onValueChange={setPaymentMethodForReminder}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((method) => (
-                        <SelectItem key={method} value={method}>
-                          {method}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        </Dialog>
+
+        {/* Mark Paid Dialog */}
+        <Dialog open={markPaidDialogOpen} onOpenChange={setMarkPaidDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Mark Bill as Paid</DialogTitle>
+              <DialogDescription>
+                Select payment method for {reminderToPay?.description} (₹{reminderToPay?.amount})
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select
+                  value={paymentMethodForReminder}
+                  onValueChange={setPaymentMethodForReminder}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_METHODS.map((method) => (
+                      <SelectItem key={method} value={method}>
+                        {method}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setMarkPaidDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={confirmMarkPaid}>
-                  Confirm Payment
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMarkPaidDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmMarkPaid}>
+                Confirm Payment
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main >
     </div >
   );
