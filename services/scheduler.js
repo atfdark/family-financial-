@@ -60,7 +60,12 @@ const checkReminders = async () => {
               `).join('')}
             </tbody>
           </table>
-          <p>Please log in to the app to mark them as paid.</p>
+          <p>
+            If already paid, please mark it as paid on the site:<br>
+            <a href="https://family-financial-qntd.vercel.app" style="color: #007bff; text-decoration: none; font-weight: bold;">
+              https://family-financial-qntd.vercel.app
+            </a>
+          </p>
         `;
 
       await sendEmail(recipientEmail, emailSubject, emailBody);
