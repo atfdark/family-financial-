@@ -1,17 +1,5 @@
 {
     "version": 2,
-    "rewrites": [
-        {
-            "source": "/api/(.*)",
-            "destination": "/server.js"
-        }
-    ],
-    "crons": [
-        {
-            "path": "/api/cron",
-            "schedule": "0 9 * * *"
-        }
-    ],
     "builds": [
         {
             "src": "server.js",
@@ -23,6 +11,12 @@
             "config": {
                 "distDir": "build"
             }
+        }
+    ],
+    "crons": [
+        {
+            "path": "/api/cron",
+            "schedule": "0 9 * * *"
         }
     ],
     "routes": [
