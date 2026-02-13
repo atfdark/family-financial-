@@ -309,7 +309,7 @@ app.get('/api/transactions', requireAuth, async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('Error fetching transactions:', err);
-    res.status(500).json({ error: 'Database error occurred' });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -351,7 +351,7 @@ app.post('/api/transactions', requireAuth, [
     res.json({ message: 'Transaction added successfully', id: data.id });
   } catch (err) {
     console.error('Error inserting transaction:', err);
-    res.status(500).json({ error: 'Database error occurred' });
+    res.status(500).json({ error: err.message });
   }
 });
 
