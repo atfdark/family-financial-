@@ -49,7 +49,7 @@ import {
   LineElement,
   Title,
 } from 'chart.js';
-import { Pie, Doughnut } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(
   ArcElement,
@@ -285,9 +285,7 @@ export default function Dashboard() {
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalIncome = filteredTransactions
-    .filter((t) => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
+
 
   const totalExpenses = filteredTransactions
     .filter((t) => t.type === 'expense')

@@ -32,15 +32,7 @@ class ApiError extends Error {
   }
 }
 
-// Get user from localStorage
-function getStoredUser(): { id: number; username: string } | null {
-  try {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
-  } catch {
-    return null;
-  }
-}
+
 
 // Delay function for retry logic
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -90,7 +82,7 @@ async function fetchWithRetry(
 }
 
 async function apiCall<T = unknown>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-  const { method = 'GET', body, headers = {}, requireAuth = true } = options;
+  const { method = 'GET', body, headers = {} } = options;
 
   const fetchOptions: RequestInit = {
     method,
