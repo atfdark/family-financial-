@@ -11,16 +11,28 @@ const checkReminders = async () => {
 
     if (error) throw error;
 
-    const today = new Date();
+    // Get current time in IST
+    const now = new Date();
+    const istDateString = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+    const todayIST = new Date(istDateString);
     // Set to beginning of day for consistent comparison
-    today.setHours(0, 0, 0, 0);
+    todayIST.setHours(0, 0, 0, 0);
 
     const upcomingReminders = reminders.filter(reminder => {
+      // Parse due date (assuming it's stored as YYYY-MM-DD or ISO)
+      // We need to treat the due date as an IST date 
       const dueDate = new Date(reminder.due_date);
-      dueDate.setHours(0, 0, 0, 0);
+
+      // Adjust due date strictly to start of day in local time (which matches how we treat "todayIST")
+      // Since due_date from DB is likely UTC midnight, we just want to compare dates.
+      // A robust way: compare YYYY-MM-DD strings in IST.
+
+      const dueDateString = dueDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+      const dueDateIST = new Date(dueDateString);
+      dueDateIST.setHours(0, 0, 0, 0);
 
       // Calculate difference in days
-      const diffTime = dueDate.getTime() - today.getTime();
+      const diffTime = dueDateIST.getTime() - todayIST.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       // Return true if due within next 5 days (including today and overdue up to 0)

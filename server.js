@@ -21,8 +21,19 @@ const PORT = process.env.PORT || 8000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
 const { checkReminders } = require('./services/scheduler');
+const cron = require('node-cron');
 
 const app = express();
+
+
+// Schedule checkReminders to run every 6 hours in IST
+cron.schedule('0 0,6,12,18 * * *', () => {
+  console.log('Running scheduled reminder check (IST)...');
+  checkReminders();
+}, {
+  scheduled: true,
+  timezone: "Asia/Kolkata"
+});
 
 // Cron endpoint for Vercel
 app.get('/api/cron', async (req, res) => {
