@@ -74,8 +74,8 @@ const checkReminders = async () => {
           </table>
           <p>
             If already paid, please mark it as paid on the site:<br>
-            <a href="https://family-financial-qntd.vercel.app" style="color: #007bff; text-decoration: none; font-weight: bold;">
-              https://family-financial-qntd.vercel.app
+            <a href="https://khatri-family.vercel.app" style="color: #007bff; text-decoration: none; font-weight: bold;">
+              https://khatri-family.vercel.app
             </a>
           </p>
         `;
