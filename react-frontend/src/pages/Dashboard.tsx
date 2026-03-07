@@ -64,27 +64,27 @@ ChartJS.register(
 );
 
 const CATEGORIES = [
-  'Food',
-  'Restaurant',
-  'Transportation',
-  'Housing',
-  'Utilities',
-  'Entertainment',
-  'Healthcare',
-  'Atul Medicines',
-  'Shopping',
-  'Education',
-  'Insurance',
-  'Enjoy Fuel',
-  'Manza Fuel',
   'Activa Fuel',
-  'Milk',
-  'Groceries',
-  'Vegetables',
-  'Fruits',
   'Alok Transportation',
+  'Atul Medicines',
+  'Education',
+  'Enjoy Fuel',
+  'Entertainment',
+  'Food',
+  'Fruits',
+  'Groceries',
+  'Healthcare',
+  'Housing',
+  'Insurance',
+  'Manza Fuel',
+  'Milk',
   'OTT',
   'Other',
+  'Restaurant',
+  'Shopping',
+  'Transportation',
+  'Utilities',
+  'Vegetables',
 ];
 
 const PAYMENT_METHODS = [
@@ -356,6 +356,37 @@ export default function Dashboard() {
         hoverOffset: 4,
       },
     ],
+  };
+
+  // Plugin to show percentages on the slices
+  const sliceLabels = {
+    id: 'sliceLabels',
+    afterDatasetsDraw(chart: any) {
+      const { ctx, data } = chart;
+      ctx.save();
+      const meta = chart.getDatasetMeta(0);
+      const total = meta.total;
+
+      meta.data.forEach((element: any, index: number) => {
+        // Only draw if the slice is large enough
+        const value = data.datasets[0].data[index];
+        const percentageNum = (value / total) * 100;
+        if (percentageNum < 5) return; // Skip small slices to avoid clutter
+
+        const percentage = percentageNum.toFixed(1) + '%';
+
+        // Use the built-in tooltipPosition to find the center of the arc
+        const centerPoint = element.tooltipPosition();
+
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillText(percentage, centerPoint.x, centerPoint.y);
+      });
+      ctx.restore();
+    }
   };
 
   // Calculate Financial Year
@@ -1085,13 +1116,25 @@ export default function Dashboard() {
                 <div className="h-[300px] md:h-[400px] flex items-center justify-center">
                   <Doughnut
                     data={chartData}
-                    plugins={[textCenter]}
+                    plugins={[textCenter, sliceLabels]}
                     options={{
                       responsive: true,
                       maintainAspectRatio: false,
                       plugins: {
                         legend: {
                           position: 'right',
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function (context: any) {
+                              const label = context.label || '';
+                              const value = context.parsed || 0;
+                              const chartInstance = context.chart as any;
+                              const total = chartInstance._metasets[context.datasetIndex].total;
+                              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                              return `${label}: ₹${value.toFixed(2)} (${percentage})`;
+                            }
+                          }
                         },
                         // Pass dynamic data to the plugin via options
                         // @ts-ignore - Custom plugin option
