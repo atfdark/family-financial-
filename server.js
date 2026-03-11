@@ -713,6 +713,100 @@ app.get('/api/export/transactions', requireAuth, [
         color: netAmount >= 0 ? 'green' : 'red'
       });
 
+      // Add a dedicated final page with a large chart for quick visual analysis.
+      doc.addPage();
+      doc.font('Helvetica-Bold').fontSize(20).fillColor('black').text('Expense Breakdown Chart', { align: 'center' });
+      doc.moveDown(0.4);
+      doc.font('Helvetica').fontSize(11).fillColor('gray').text('Last page visual summary', { align: 'center' });
+
+      const expenseByCategory = rows
+        .filter((row) => row.type === 'expense')
+        .reduce((acc, row) => {
+          const key = row.category || 'Other';
+          acc[key] = (acc[key] || 0) + row.amount;
+          return acc;
+        }, {});
+
+      const chartSegments = Object.entries(expenseByCategory)
+        .sort((a, b) => b[1] - a[1]);
+
+      const fallbackSegments = [
+        ['Income', totalIncome],
+        ['Expense', totalExpense]
+      ].filter(([, value]) => value > 0);
+
+      const dataSegments = chartSegments.length > 0 ? chartSegments : fallbackSegments;
+      const totalForChart = dataSegments.reduce((sum, [, value]) => sum + value, 0);
+
+      const palette = [
+        '#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4',
+        '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#14B8A6'
+      ];
+
+      if (totalForChart <= 0) {
+        doc.moveDown(3);
+        doc.font('Helvetica-Bold').fontSize(14).fillColor('black').text('No chart data available for this period.', {
+          align: 'center'
+        });
+      } else {
+        const centerX = 297.5;
+        const centerY = 315;
+        const radius = 165;
+        let startAngle = -Math.PI / 2;
+
+        dataSegments.forEach(([, value], index) => {
+          const angle = (value / totalForChart) * Math.PI * 2;
+          const endAngle = startAngle + angle;
+          const color = palette[index % palette.length];
+
+          doc.save();
+          doc.fillColor(color);
+          doc.moveTo(centerX, centerY);
+          doc.arc(centerX, centerY, radius, startAngle, endAngle);
+          doc.lineTo(centerX, centerY);
+          doc.fill();
+          doc.restore();
+
+          const percentage = (value / totalForChart) * 100;
+          // Label only sufficiently large slices to prevent heavy overlap.
+          if (percentage >= 7) {
+            const midAngle = startAngle + angle / 2;
+            const labelRadius = radius * 0.66;
+            const labelX = centerX + Math.cos(midAngle) * labelRadius;
+            const labelY = centerY + Math.sin(midAngle) * labelRadius;
+            doc.font('Helvetica-Bold').fontSize(10).fillColor('white').text(`${percentage.toFixed(0)}%`, labelX - 14, labelY - 6, {
+              width: 28,
+              align: 'center'
+            });
+          }
+
+          startAngle = endAngle;
+        });
+
+        doc.font('Helvetica-Bold').fontSize(12).fillColor('black')
+          .text(`Total: ${totalForChart.toFixed(2)}`, centerX - 80, centerY + radius + 12, { width: 160, align: 'center' });
+
+        let legendY = 535;
+        doc.font('Helvetica').fontSize(10).fillColor('black');
+        dataSegments.slice(0, 10).forEach(([label, value], index) => {
+          const color = palette[index % palette.length];
+          const column = index % 2;
+          const rowIndex = Math.floor(index / 2);
+          const x = column === 0 ? 60 : 320;
+          const yPos = legendY + rowIndex * 22;
+          const percent = ((value / totalForChart) * 100).toFixed(1);
+
+          doc.save();
+          doc.fillColor(color).rect(x, yPos, 12, 12).fill();
+          doc.restore();
+
+          doc.fillColor('black').text(`${label}: ${value.toFixed(2)} (${percent}%)`, x + 18, yPos + 1, {
+            width: 240,
+            ellipsis: true
+          });
+        });
+      }
+
       doc.end();
     }
   } catch (err) {
